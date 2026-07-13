@@ -21,3 +21,21 @@ suite("models.js", ()=>{
   const p = crearPartido({id:"m1", ronda:"grupo", grupo:"A", localId:"t1", visitanteId:"t2"});
   assertEq("partido no jugado", p.jugado, false);
 });
+
+suite("generator.js", ()=>{
+  const rng = ()=>0.5; // determinista
+  const liga = generarLiga(rng);
+  assertEq("32 equipos", liga.length, 32);
+  const e = liga[0];
+  assert("18-20 jugadores", e.jugadores.length>=18 && e.jugadores.length<=20);
+  const porteros = e.jugadores.filter(j=>j.posicion==="POR").length;
+  assert("al menos 2 porteros", porteros>=2);
+  assert("ids de jugador únicos", new Set(e.jugadores.map(j=>j.id)).size===e.jugadores.length);
+  assert("nivel entre 1 y 5", e.nivel>=1 && e.nivel<=5);
+  const at=e.jugadores[0].ataque;
+  assert("atributos en rango", at>=40 && at<=95);
+  // equipos de mayor nivel tienen mejor media
+  const media = t=> t.jugadores.reduce((s,j)=>s+(j.ataque+j.defensa+j.velocidad)/3,0)/t.jugadores.length;
+  const fuerte = liga.find(t=>t.nivel===5), debil = liga.find(t=>t.nivel===1);
+  if(fuerte && debil) assert("nivel 5 >= nivel 1", media(fuerte)>=media(debil));
+});
