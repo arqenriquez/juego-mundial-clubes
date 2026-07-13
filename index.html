@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mundial de Clubes — Manager</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <header id="topbar">
+    <span id="titulo-juego">⚽ MUNDIAL DE CLUBES</span>
+    <span id="subtitulo"></span>
+  </header>
+
+  <main id="app">
+    <section id="vista-inicio"    class="vista activa"></section>
+    <section id="vista-grupos"    class="vista"></section>
+    <section id="vista-dashboard" class="vista"></section>
+    <section id="vista-partido"   class="vista"></section>
+    <section id="vista-bracket"   class="vista"></section>
+  </main>
+
+  <!-- Orden de carga importa: primero lógica, main.js al final -->
+  <script src="js/data.js"></script>
+  <script src="js/models.js"></script>
+  <script src="js/generator.js"></script>
+  <script src="js/mechanics.js"></script>
+  <script src="js/engine.js"></script>
+  <script src="js/tournament.js"></script>
+  <script src="js/storage.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>

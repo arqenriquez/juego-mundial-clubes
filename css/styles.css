@@ -1,0 +1,20 @@
+:root{
+  --bg:#0d1117; --panel:#161b22; --panel2:#1f2630; --linea:#30363d;
+  --texto:#e6edf3; --tenue:#8b949e; --acento:#3fb950; --acento2:#58a6ff;
+  --alerta:#f85149; --amarillo:#d29922;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--texto);
+  font-family:system-ui,Segoe UI,Roboto,sans-serif;line-height:1.4}
+#topbar{display:flex;justify-content:space-between;align-items:center;
+  padding:12px 20px;background:var(--panel);border-bottom:1px solid var(--linea)}
+#titulo-juego{font-weight:700;letter-spacing:.5px}
+#subtitulo{color:var(--tenue);font-size:.9rem}
+#app{max-width:1000px;margin:0 auto;padding:20px}
+.vista{display:none}
+.vista.activa{display:block}
+.btn{background:var(--acento);color:#04260f;border:none;border-radius:8px;
+  padding:10px 16px;font-weight:600;cursor:pointer}
+.btn:hover{filter:brightness(1.1)}
+.btn.sec{background:var(--panel2);color:var(--texto);border:1px solid var(--linea)}
+.panel{background:var(--panel);border:1px solid var(--linea);border-radius:12px;padding:16px;margin-bottom:16px}
