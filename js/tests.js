@@ -39,3 +39,30 @@ suite("generator.js", ()=>{
   const fuerte = liga.find(t=>t.nivel===5), debil = liga.find(t=>t.nivel===1);
   if(fuerte && debil) assert("nivel 5 >= nivel 1", media(fuerte)>=media(debil));
 });
+
+suite("mechanics.js", ()=>{
+  const base=()=>crearJugador({id:"x",nombre:"A",posicion:"MED",edad:20,
+    ataque:60,defensa:60,velocidad:60,resistencia:50});
+  // cansancio sube al jugar
+  let j=base(); aplicarCansancio(j,true);
+  assert("cansancio sube al jugar", j.cansancio>0 && j.cansancio<=100);
+  // más resistencia = se cansa menos
+  let a=base(); a.resistencia=90; let b=base(); b.resistencia=40;
+  aplicarCansancio(a,true); aplicarCansancio(b,true);
+  assert("más resistencia se cansa menos", a.cansancio < b.cansancio);
+  // descanso baja
+  let c=base(); c.cansancio=50; aplicarCansancio(c,false);
+  assert("descanso baja cansancio", c.cansancio<50);
+  // clamps
+  let d=base(); d.cansancio=95; aplicarCansancio(d,true);
+  assert("cansancio no pasa de 100", d.cansancio<=100);
+  // forma
+  let f=base(); actualizarForma(f,"V"); assertEq("forma sube con victoria", f.forma,1);
+  f.forma=3; actualizarForma(f,"V"); assertEq("forma tope +3", f.forma,3);
+  f.forma=-3; actualizarForma(f,"D"); assertEq("forma piso -3", f.forma,-3);
+  // progresión joven vs veterano
+  const rng=()=>0.99;
+  let joven=base(); joven.edad=19; joven.experiencia=95;
+  let r1=aplicarProgresion(joven,true,rng);
+  assert("joven sube atributo", r1.subio!==null);
+});
