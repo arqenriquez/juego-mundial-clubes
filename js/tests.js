@@ -80,3 +80,33 @@ suite("mechanics.js", ()=>{
   assertEq("veterano pierde velocidad", jVet.velocidad, 79);
   assertEq("bajo reporta velocidad", rVet.bajo, "velocidad");
 });
+
+suite("engine.js", ()=>{
+  // equipo helper con 11 titulares de rating fijo
+  function equipoDe(rating, formacion){
+    const jugadores=[]; let id=0;
+    const comp={POR:1, ...FORMACIONES[formacion]};
+    Object.entries(comp).forEach(([pos,cant])=>{
+      for(let c=0;c<cant;c++){
+        jugadores.push(crearJugador({id:"j"+(id++),nombre:"x",posicion:pos,edad:25,
+          ataque:rating,defensa:rating,velocidad:rating,resistencia:80}));
+      }
+    });
+    const e=crearEquipo({id:"e"+rating,ciudad:"Z",nivel:3});
+    e.jugadores=jugadores; e.formacion=formacion; e.titulares=jugadores.map(j=>j.id);
+    return e;
+  }
+  const fuerte=equipoDe(90,"4-3-3"), debil=equipoDe(50,"4-4-2");
+  const ef=evaluarAlineacion(fuerte), ed=evaluarAlineacion(debil);
+  assert("equipo fuerte ataca más", ef.ataque>ed.ataque);
+  assert("goles esperados >=0.2", golesEsperados(10,10,0)>=0.2);
+  assert("más ataque => más goles esperados", golesEsperados(80,40,0)>golesEsperados(40,80,0));
+  // cansancio reduce el rating
+  const cansado=equipoDe(90,"4-3-3"); cansado.jugadores.forEach(j=>j.cansancio=100);
+  assert("cansancio baja ataque", evaluarAlineacion(cansado).ataque < ef.ataque);
+  // simulación produce marcador entero y goleadores coherentes
+  let seed=1; const rng=()=>{ seed=(seed*9301+49297)%233280; return seed/233280; };
+  const r=simularPartido(fuerte,debil,rng);
+  assert("goles locales enteros>=0", Number.isInteger(r.golesLocal)&&r.golesLocal>=0);
+  assertEq("goleadores = suma de goles", r.goleadores.length, r.golesLocal+r.golesVisitante);
+});
