@@ -65,4 +65,18 @@ suite("mechanics.js", ()=>{
   let joven=base(); joven.edad=19; joven.experiencia=95;
   let r1=aplicarProgresion(joven,true,rng);
   assert("joven sube atributo", r1.subio!==null);
+  // acumulación de experiencia: el sobrante se conserva (no se resetea a 0)
+  let jExp=base(); jExp.edad=19; jExp.experiencia=85;
+  aplicarProgresion(jExp,true,()=>0.99); // ritmo 30 => 115, sube 1 y quedan 15
+  assertEq("experiencia conserva sobrante", jExp.experiencia, 15);
+  // tope de atributo en 95: no sube y subio es null
+  let jTope=base(); jTope.edad=20; jTope.experiencia=95; jTope.resistencia=95;
+  let rTope=aplicarProgresion(jTope,true,()=>0.99); // rng elige indice 3 = "resistencia"
+  assertEq("atributo topado en 95 no sube", jTope.resistencia, 95);
+  assert("subio es null si el atributo ya esta topado", rTope.subio===null);
+  // declive del veterano: 33+ puede perder velocidad (piso 40)
+  let jVet=base(); jVet.edad=35; jVet.velocidad=80; jVet.experiencia=0;
+  let rVet=aplicarProgresion(jVet,true,()=>0.1); // ritmo 5 => exp 5 (<100), gate 0.1<0.15 => declina
+  assertEq("veterano pierde velocidad", jVet.velocidad, 79);
+  assertEq("bajo reporta velocidad", rVet.bajo, "velocidad");
 });
