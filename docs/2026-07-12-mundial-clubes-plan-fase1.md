@@ -169,6 +169,9 @@ Crear vacíos: `js/data.js`, `js/models.js`, `js/generator.js`, `js/mechanics.js
 
 - [ ] **Step 1: Crear `js/testkit.js`**
 
+Debe funcionar en **navegador** (pinta en el DOM) y en **Node** (imprime en consola), para
+poder verificar la lógica sin abrir el navegador.
+
 ```js
 const _suites = [];
 function suite(nombre, fn){ _suites.push({nombre, fn}); }
@@ -177,22 +180,40 @@ function assert(nombre, cond){ _actual.push({nombre, pass: !!cond}); }
 function assertEq(nombre, a, b){ assert(`${nombre} → ${JSON.stringify(a)} == ${JSON.stringify(b)}`, a===b); }
 function assertAprox(nombre, a, b, tol){ assert(`${nombre} → |${a}-${b}| <= ${tol}`, Math.abs(a-b)<=tol); }
 function correrPruebas(){
-  const cont = document.getElementById("resultados");
+  const enNavegador = (typeof document !== "undefined");
   let totalPass=0, total=0;
   _suites.forEach(s=>{
     _actual=[]; try{ s.fn(); }catch(e){ _actual.push({nombre:"EXCEPCIÓN: "+e.message, pass:false}); }
     const pasa=_actual.filter(r=>r.pass).length;
     total+=_actual.length; totalPass+=pasa;
-    const div=document.createElement("div"); div.className="suite";
-    div.innerHTML=`<h3>${pasa===_actual.length?"✅":"❌"} ${s.nombre} (${pasa}/${_actual.length})</h3>`;
-    _actual.forEach(r=>{ const p=document.createElement("p");
-      p.textContent=(r.pass?"✅ ":"❌ ")+r.nombre; p.style.color=r.pass?"#3fb950":"#f85149";
-      div.appendChild(p); });
-    cont.appendChild(div);
+    if(enNavegador){
+      const div=document.createElement("div"); div.className="suite";
+      div.innerHTML=`<h3>${pasa===_actual.length?"✅":"❌"} ${s.nombre} (${pasa}/${_actual.length})</h3>`;
+      _actual.forEach(r=>{ const p=document.createElement("p");
+        p.textContent=(r.pass?"✅ ":"❌ ")+r.nombre; p.style.color=r.pass?"#3fb950":"#f85149";
+        div.appendChild(p); });
+      document.getElementById("resultados").appendChild(div);
+    } else {
+      console.log(`${pasa===_actual.length?"OK   ":"FALLA"} ${s.nombre} (${pasa}/${_actual.length})`);
+      _actual.forEach(r=>{ if(!r.pass) console.log("        x "+r.nombre); });
+    }
   });
-  document.getElementById("resumen").textContent=`TOTAL: ${totalPass}/${total}`;
+  const resumen=`TOTAL: ${totalPass}/${total}`;
+  if(enNavegador) document.getElementById("resumen").textContent=resumen;
+  else console.log(resumen);
+  return { totalPass, total };
 }
 ```
+
+**Verificación en Node (para los sub-agentes de lógica, Tareas 3-8):** concatenar los módulos
+puros + `tests.js` y correr `correrPruebas()`. Como cada archivo declara nombres únicos a nivel
+global, funciona en un solo ámbito:
+
+```bash
+node -e "$(cat js/testkit.js js/data.js js/models.js js/generator.js js/mechanics.js js/engine.js js/tournament.js js/tests.js); const r=correrPruebas(); process.exit(r.totalPass===r.total?0:1);"
+```
+Esperado: líneas `OK ...` y `TOTAL: X/X` con X=X, código de salida 0. (En Node no se cargan
+`storage.js`, `ui.js` ni `main.js` porque usan `document`/`localStorage`/`window`.)
 
 - [ ] **Step 2: Crear `tests.html`**
 
