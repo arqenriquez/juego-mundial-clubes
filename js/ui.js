@@ -33,9 +33,11 @@ function renderGrupos(){
     html+=`<div class="grupo"><h3>Grupo ${g.id}</h3>
       <table><tr><th>Equipo</th><th>PJ</th><th>Pts</th><th>DG</th></tr>`;
     tabla.forEach((f,idx)=>{
-      const mio=f.equipoId===JUEGO.miEquipoId?' class="mio"':'';
-      const clasif = idx<2 ? ' clasif':'';
-      html+=`<tr${mio}${clasif?` class="clasif"`:''}><td>${nombre(f.equipoId)}</td>
+      const clases=[];
+      if(f.equipoId===JUEGO.miEquipoId) clases.push("mio");
+      if(idx<2) clases.push("clasif");
+      const attr = clases.length ? ` class="${clases.join(" ")}"` : "";
+      html+=`<tr${attr}><td>${nombre(f.equipoId)}</td>
         <td>${f.pj}</td><td>${f.pts}</td><td>${f.dg}</td></tr>`;
     });
     html+=`</table></div>`;
