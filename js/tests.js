@@ -110,3 +110,25 @@ suite("engine.js", ()=>{
   assert("goles locales enteros>=0", Number.isInteger(r.golesLocal)&&r.golesLocal>=0);
   assertEq("goleadores = suma de goles", r.goleadores.length, r.golesLocal+r.golesVisitante);
 });
+
+suite("tournament.js", ()=>{
+  const rng=()=>0.5;
+  const liga=generarLiga(rng);
+  const grupos=sortearGrupos(liga, rng);
+  assertEq("8 grupos", grupos.length, 8);
+  assert("4 por grupo", grupos.every(g=>g.equiposIds.length===4));
+  const todos=grupos.flatMap(g=>g.equiposIds);
+  assertEq("32 equipos repartidos", new Set(todos).size, 32);
+  const fx=fixturesDeGrupo(grupos[0]);
+  assertEq("6 partidos por grupo", fx.length, 6);
+  // cada equipo juega 3
+  const cuenta={};
+  fx.forEach(p=>{ cuenta[p.localId]=(cuenta[p.localId]||0)+1; cuenta[p.visitanteId]=(cuenta[p.visitanteId]||0)+1; });
+  assert("cada equipo juega 3", Object.values(cuenta).every(c=>c===3));
+  // tabla: forzar un resultado
+  fx[0].jugado=true; fx[0].golesLocal=3; fx[0].golesVisitante=0;
+  const tabla=calcularTabla(grupos[0], fx);
+  assertEq("líder tiene 3 pts", tabla[0].pts, 3);
+  assertEq("nombre ronda 16", nombreRonda(16), "Octavos");
+  assertEq("nombre ronda 2", nombreRonda(2), "Final");
+});
