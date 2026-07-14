@@ -131,4 +131,11 @@ suite("tournament.js", ()=>{
   assertEq("líder tiene 3 pts", tabla[0].pts, 3);
   assertEq("nombre ronda 16", nombreRonda(16), "Octavos");
   assertEq("nombre ronda 2", nombreRonda(2), "Final");
+  // construirBracket: empareja 1º vs 2º cruzados y cubre a los 16 clasificados sin repetir
+  const clas=_LETRAS.map(l=>({grupo:l, primero:"1"+l, segundo:"2"+l}));
+  const br=construirBracket(clas);
+  assertEq("bracket nombre Octavos", br.nombre, "Octavos");
+  assertEq("bracket 8 llaves", br.llaves.length, 8);
+  const slots=br.llaves.flatMap(x=>[x.localId, x.visitanteId]);
+  assertEq("bracket cubre 16 clasificados sin repetir", new Set(slots).size, 16);
 });
