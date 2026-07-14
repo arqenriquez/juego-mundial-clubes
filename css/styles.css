@@ -18,3 +18,13 @@ body{background:var(--bg);color:var(--texto);
 .btn:hover{filter:brightness(1.1)}
 .btn.sec{background:var(--panel2);color:var(--texto);border:1px solid var(--linea)}
 .panel{background:var(--panel);border:1px solid var(--linea);border-radius:12px;padding:16px;margin-bottom:16px}
+
+.grid-clubes{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin-top:12px}
+.club-card{background:var(--panel2);color:var(--texto);border:1px solid var(--linea);
+  border-radius:8px;padding:14px;cursor:pointer;text-align:left;font-size:.9rem}
+.club-card:hover{border-color:var(--acento);background:#232b36}
+.grupos-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px;margin:12px 0}
+.grupo table{width:100%;border-collapse:collapse;font-size:.85rem}
+.grupo th,.grupo td{text-align:left;padding:4px 6px;border-bottom:1px solid var(--linea)}
+.grupo tr.mio td{color:var(--acento2);font-weight:700}
+.grupo tr.clasif td:first-child{border-left:3px solid var(--acento)}
