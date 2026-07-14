@@ -67,6 +67,25 @@ function proximoPartidoDe(equipoId){
 
 function _equipo(id){ return JUEGO.equipos.find(e=>e.id===id); }
 
+// Partido del usuario en la fase actual (grupo o ronda de eliminatoria), o null si no tiene
+function miPartidoActual(){
+  if(JUEGO.fase==="grupos") return proximoPartidoDe(JUEGO.miEquipoId);
+  return _partidosRondaActual().find(x=>x.localId===JUEGO.miEquipoId||x.visitanteId===JUEGO.miEquipoId) || null;
+}
+
+// El usuario fue eliminado si estamos en eliminatorias y ya no tiene partido en la ronda actual
+function estoyEliminado(){
+  return JUEGO.fase==="eliminatorias" && !miPartidoActual();
+}
+
+// El usuario ya no juega: resuelve las rondas restantes hasta coronar campeón
+function simularRestoTorneo(){
+  let guardia=0;
+  while(JUEGO.fase==="eliminatorias" && guardia++<10){ _resolverLlaveMia(); }
+  guardarJuego(JUEGO);
+  renderBracket();
+}
+
 function jugarJornadaDeMiPartido(){
   const mio=proximoPartidoDe(JUEGO.miEquipoId);
   if(!mio){ avanzarFase(); return; }
@@ -140,6 +159,8 @@ function _resolverLlaveMia(){
     aplicarPostPartido(p);
     if(p.localId===JUEGO.miEquipoId||p.visitanteId===JUEGO.miEquipoId) mio=p;
   });
+  // guarda los resultados de esta ronda para mostrarlos como "otros resultados"
+  JUEGO.ultimaJornada = pendientes.map(p=>({localId:p.localId, visitanteId:p.visitanteId, golesLocal:p.golesLocal, golesVisitante:p.golesVisitante}));
   // construir siguiente ronda
   const ganadores=JUEGO.bracket.llaves.map(l=>l.ganadorId);
   if(ganadores.length===1){ JUEGO.fase="campeon"; }

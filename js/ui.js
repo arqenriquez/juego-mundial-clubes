@@ -51,6 +51,17 @@ function renderGrupos(){
 function renderDashboard(){
   mostrarVista("vista-dashboard");
   const mi=_equipo(JUEGO.miEquipoId);
+  if(estoyEliminado()){
+    const vElim=document.getElementById("vista-dashboard");
+    vElim.innerHTML=`<div class="panel">
+      <h2>${mi.nombre}</h2>
+      <p>Tu equipo quedó <b>eliminado</b> del torneo. Puedes simular el resto para ver quién se corona campeón.</p>
+      <div style="margin-top:12px">
+        <button class="btn" onclick="simularRestoTorneo()">▶ Simular resto del torneo</button>
+        <button class="btn sec" onclick="renderBracket()">Ver bracket</button>
+      </div></div>`;
+    return;
+  }
   const rival=(function(){
     const p = JUEGO.fase==="grupos" ? proximoPartidoDe(mi.id)
       : _partidosRondaActual().find(x=>x.localId===mi.id||x.visitanteId===mi.id);
@@ -101,7 +112,11 @@ function toggleTitular(id){
   renderDashboard();
 }
 function cambiarFormacion(f){ _equipo(JUEGO.miEquipoId).formacion=f; renderDashboard(); }
-function jugarEliminatoria(){ const mio=_resolverLlaveMia(); renderResultado(mio); }
+function jugarEliminatoria(){
+  const mio=_resolverLlaveMia();
+  if(mio) renderResultado(mio);
+  else simularRestoTorneo(); // el usuario ya no está en la ronda: termina el torneo
+}
 
 function renderResultado(p){
   mostrarVista("vista-partido");
@@ -109,8 +124,11 @@ function renderResultado(p){
   const nombreJug=(eid,jid)=>{ const e=_equipo(eid); const j=e.jugadores.find(x=>x.id===jid); return j?j.nombre:"?"; };
   const v=document.getElementById("vista-partido");
   const gol=p.goleadores.map(g=>`<li>${g.minuto}' ${nombreJug(g.equipoId,g.jugadorId)} (${_equipo(g.equipoId).nombre})</li>`).join("");
-  // otros resultados de la fase
-  const otros = partidosDeFase().filter(x=>x.jugado && x!==p)
+  // otros resultados: en grupos desde la fase; en eliminatorias desde la última ronda resuelta
+  const fuente = JUEGO.fase==="grupos"
+    ? partidosDeFase().filter(x=>x.jugado && x!==p)
+    : (JUEGO.ultimaJornada||[]).filter(x=> !(x.localId===p.localId && x.visitanteId===p.visitanteId));
+  const otros = fuente
     .map(x=>`<div class="mini-res">${nombre(x.localId)} ${x.golesLocal}-${x.golesVisitante} ${nombre(x.visitanteId)}</div>`).join("");
   const continuar = JUEGO.fase==="campeon" ? "renderBracket()" :
     (proximoPartidoDe(JUEGO.miEquipoId) ? "irADashboard()" : "avanzarFase()");
