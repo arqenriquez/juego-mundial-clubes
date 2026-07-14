@@ -8,7 +8,7 @@ function crearEquipo(o){
     esHumano:false, jugadores:[], formacion:"4-4-2", titulares:[] };
 }
 function crearPartido(o){
-  return { id:o.id, ronda:o.ronda, grupo:o.grupo||null,
+  return { id:o.id, ronda:o.ronda, grupo:o.grupo||null, jornada:o.jornada||null,
     localId:o.localId, visitanteId:o.visitanteId,
     golesLocal:0, golesVisitante:0, jugado:false, goleadores:[] };
 }

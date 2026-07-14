@@ -18,9 +18,10 @@ function sortearGrupos(equipos, rng){
 
 function fixturesDeGrupo(grupo){
   const [a,b,c,d]=grupo.equiposIds;
-  const pares=[[a,b],[c,d],[a,c],[b,d],[a,d],[b,c]]; // round robin 4 equipos
+  // round robin 4 equipos, 2 partidos por jornada (cada equipo juega 1 por jornada)
+  const pares=[[a,b],[c,d],[a,c],[b,d],[a,d],[b,c]];
   return pares.map((par,i)=>crearPartido({
-    id:`g${grupo.id}-m${i}`, ronda:"grupo", grupo:grupo.id,
+    id:`g${grupo.id}-m${i}`, ronda:"grupo", grupo:grupo.id, jornada:Math.floor(i/2)+1,
     localId:par[0], visitanteId:par[1] }));
 }
 

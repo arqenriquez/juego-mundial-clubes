@@ -125,6 +125,14 @@ suite("tournament.js", ()=>{
   const cuenta={};
   fx.forEach(p=>{ cuenta[p.localId]=(cuenta[p.localId]||0)+1; cuenta[p.visitanteId]=(cuenta[p.visitanteId]||0)+1; });
   assert("cada equipo juega 3", Object.values(cuenta).every(c=>c===3));
+  // jornadas: 3 jornadas, 2 partidos cada una, 4 equipos distintos por jornada
+  assert("jornadas en rango 1..3", fx.every(p=>p.jornada>=1 && p.jornada<=3));
+  [1,2,3].forEach(jr=>{
+    const enJr=fx.filter(p=>p.jornada===jr);
+    assertEq("jornada "+jr+": 2 partidos", enJr.length, 2);
+    const eqs=enJr.flatMap(p=>[p.localId,p.visitanteId]);
+    assertEq("jornada "+jr+": 4 equipos distintos", new Set(eqs).size, 4);
+  });
   // tabla: forzar un resultado
   fx[0].jugado=true; fx[0].golesLocal=3; fx[0].golesVisitante=0;
   const tabla=calcularTabla(grupos[0], fx);

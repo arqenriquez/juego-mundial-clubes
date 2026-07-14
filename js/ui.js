@@ -90,7 +90,7 @@ function renderDashboard(){
   const accion = JUEGO.fase==="grupos" ? "jugarJornadaDeMiPartido()" : "jugarEliminatoria()";
   v.innerHTML=`<div class="panel">
     <h2>${mi.nombre}</h2>
-    <p>Próximo rival: <b>${rival?rival.nombre:"—"}</b> · Fase: ${JUEGO.fase}</p>
+    <p>Próximo rival: <b>${rival?rival.nombre:"—"}</b> · ${JUEGO.fase==="grupos"?`Grupos · Jornada ${JUEGO.jornadaActual}/3`:(JUEGO.bracket?JUEGO.bracket.nombre:JUEGO.fase)}</p>
     <label>Formación:
       <select onchange="cambiarFormacion(this.value)">${opciones}</select></label>
     <span id="conteo-tit" style="margin-left:12px;color:${nTit===11?'var(--acento)':'var(--alerta)'}">
@@ -124,11 +124,9 @@ function renderResultado(p){
   const nombreJug=(eid,jid)=>{ const e=_equipo(eid); const j=e.jugadores.find(x=>x.id===jid); return j?j.nombre:"?"; };
   const v=document.getElementById("vista-partido");
   const gol=p.goleadores.map(g=>`<li>${g.minuto}' ${nombreJug(g.equipoId,g.jugadorId)} (${_equipo(g.equipoId).nombre})</li>`).join("");
-  // otros resultados: en grupos desde la fase; en eliminatorias desde la última ronda resuelta
-  const fuente = JUEGO.fase==="grupos"
-    ? partidosDeFase().filter(x=>x.jugado && x!==p)
-    : (JUEGO.ultimaJornada||[]).filter(x=> !(x.localId===p.localId && x.visitanteId===p.visitanteId));
-  const otros = fuente
+  // otros resultados de la última jornada/ronda jugada (grupos y eliminatorias)
+  const otros = (JUEGO.ultimaJornada||[])
+    .filter(x=> !(x.localId===p.localId && x.visitanteId===p.visitanteId))
     .map(x=>`<div class="mini-res">${nombre(x.localId)} ${x.golesLocal}-${x.golesVisitante} ${nombre(x.visitanteId)}</div>`).join("");
   const continuar = JUEGO.fase==="campeon" ? "renderBracket()" :
     (proximoPartidoDe(JUEGO.miEquipoId) ? "irADashboard()" : "avanzarFase()");

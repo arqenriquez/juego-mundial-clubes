@@ -1,5 +1,5 @@
 const JUEGO = { equipos:[], miEquipoId:null, grupos:[], partidosGrupo:[],
-  bracket:null, fase:"inicio", rng: Math.random };
+  bracket:null, fase:"inicio", jornadaActual:1, ultimaJornada:[], rng: Math.random };
 
 function mostrarVista(id){
   document.querySelectorAll(".vista").forEach(v=>v.classList.remove("activa"));
@@ -15,6 +15,8 @@ function nuevoJuego(miEquipoId){
   JUEGO.equipos.forEach(e=>{ if(!e.esHumano) autoAlinear(e); });
   JUEGO.grupos = sortearGrupos(JUEGO.equipos, JUEGO.rng);
   JUEGO.partidosGrupo = JUEGO.grupos.flatMap(g=>fixturesDeGrupo(g));
+  JUEGO.jornadaActual = 1;
+  JUEGO.ultimaJornada = [];
   JUEGO.fase="grupos";
   guardarJuego(JUEGO);
   irADashboard();
@@ -61,7 +63,12 @@ function partidosDeFase(){
 }
 
 function proximoPartidoDe(equipoId){
-  return partidosDeFase().find(p=>!p.jugado &&
+  if(JUEGO.fase==="grupos"){
+    // en grupos solo cuenta la jornada actual (se juega jornada por jornada)
+    return JUEGO.partidosGrupo.find(p=>!p.jugado && p.jornada===JUEGO.jornadaActual &&
+      (p.localId===equipoId || p.visitanteId===equipoId)) || null;
+  }
+  return _partidosRondaActual().find(p=>!p.jugado &&
     (p.localId===equipoId || p.visitanteId===equipoId)) || null;
 }
 
@@ -89,9 +96,12 @@ function simularRestoTorneo(){
 function jugarJornadaDeMiPartido(){
   const mio=proximoPartidoDe(JUEGO.miEquipoId);
   if(!mio){ avanzarFase(); return; }
-  _simularPartidoObj(mio);
-  // simular el resto de partidos pendientes de la fase para no dejar rezagados
-  partidosDeFase().filter(p=>!p.jugado).forEach(_simularPartidoObj);
+  // juega SOLO los partidos de la jornada actual (todos los grupos), no toda la fase
+  const jornada = JUEGO.partidosGrupo.filter(p=>p.jornada===JUEGO.jornadaActual && !p.jugado);
+  jornada.forEach(_simularPartidoObj);
+  JUEGO.ultimaJornada = jornada.map(p=>({localId:p.localId, visitanteId:p.visitanteId,
+    golesLocal:p.golesLocal, golesVisitante:p.golesVisitante}));
+  JUEGO.jornadaActual++;
   guardarJuego(JUEGO);
   renderResultado(mio);
 }
