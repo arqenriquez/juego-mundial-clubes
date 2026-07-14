@@ -111,7 +111,7 @@ function toggleTitular(id){
   else if(mi.titulares.length<11) mi.titulares.push(id);
   renderDashboard();
 }
-function cambiarFormacion(f){ _equipo(JUEGO.miEquipoId).formacion=f; renderDashboard(); }
+function cambiarFormacion(f){ const mi=_equipo(JUEGO.miEquipoId); mi.formacion=f; autoAlinear(mi); renderDashboard(); }
 function jugarEliminatoria(){
   const mio=_resolverLlaveMia();
   if(mio) renderResultado(mio);

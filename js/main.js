@@ -4,6 +4,18 @@ const JUEGO = { equipos:[], miEquipoId:null, grupos:[], partidosGrupo:[],
 function mostrarVista(id){
   document.querySelectorAll(".vista").forEach(v=>v.classList.remove("activa"));
   document.getElementById(id).classList.add("activa");
+  _actualizarTopbar();
+}
+
+function _actualizarTopbar(){
+  const el=document.getElementById("subtitulo");
+  if(!el) return;
+  const mi = JUEGO.miEquipoId ? _equipo(JUEGO.miEquipoId) : null;
+  if(!mi){ el.textContent=""; return; }
+  const faseTxt = JUEGO.fase==="grupos" ? `Grupos · J${JUEGO.jornadaActual}/3`
+    : (JUEGO.fase==="eliminatorias" && JUEGO.bracket) ? JUEGO.bracket.nombre
+    : JUEGO.fase==="campeon" ? "Campeón" : JUEGO.fase;
+  el.textContent = `${mi.nombre} · ${faseTxt}`;
 }
 
 function nuevoJuego(miEquipoId){
