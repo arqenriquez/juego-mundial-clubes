@@ -28,3 +28,17 @@ body{background:var(--bg);color:var(--texto);
 .grupo th,.grupo td{text-align:left;padding:4px 6px;border-bottom:1px solid var(--linea)}
 .grupo tr.mio td{color:var(--acento2);font-weight:700}
 .grupo tr.clasif td:first-child{border-left:3px solid var(--acento)}
+
+/* Tarea 11: dashboard, partido, bracket */
+.plantilla{width:100%;border-collapse:collapse;margin-top:12px;font-size:.85rem}
+.plantilla th,.plantilla td{padding:5px 8px;border-bottom:1px solid var(--linea);text-align:left}
+.plantilla tr.titular{background:#12261a}
+.barra{background:var(--panel2);border-radius:6px;height:10px;width:80px;overflow:hidden;display:inline-block}
+.barra span{display:block;height:100%}
+.marcador{text-align:center;font-size:1.4rem}
+.marcador b{color:var(--acento)}
+.goles{list-style:none;margin:12px auto;max-width:400px}
+.otros{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:6px;margin-bottom:16px}
+.mini-res{background:var(--panel2);border-radius:6px;padding:6px 8px;font-size:.85rem}
+.campeon{text-align:center}
+.vista-bracket .mio,.panel .mio{color:var(--acento2);font-weight:700}
