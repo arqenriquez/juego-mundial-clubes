@@ -20,6 +20,12 @@
     <section id="vista-bracket"   class="vista"></section>
   </main>
 
+  <!-- Cortinilla de simulación: cubre la pantalla mientras se resuelve el partido -->
+  <div id="cortina" aria-hidden="true">
+    <span class="balon">⚽</span>
+    <p id="cortina-txt"></p>
+  </div>
+
   <!-- Orden de carga importa: primero lógica, main.js al final -->
   <script src="js/data.js"></script>
   <script src="js/models.js"></script>
@@ -28,6 +34,8 @@
   <script src="js/engine.js"></script>
   <script src="js/tournament.js"></script>
   <script src="js/storage.js"></script>
+  <script src="js/anim.js"></script>
+  <script src="js/avatar.js"></script>
   <script src="js/ui.js"></script>
   <script src="js/main.js"></script>
 </body>

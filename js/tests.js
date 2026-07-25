@@ -147,3 +147,33 @@ suite("tournament.js", ()=>{
   const slots=br.llaves.flatMap(x=>[x.localId, x.visitanteId]);
   assertEq("bracket cubre 16 clasificados sin repetir", new Set(slots).size, 16);
 });
+
+suite("avatar.js", ()=>{
+  // determinismo: la cara depende solo de la semilla, no del momento en que se pide
+  assertEq("misma semilla → misma cara", caraSVG("t19-p5"), caraSVG("t19-p5"));
+  assert("semillas distintas → caras distintas", caraSVG("t19-p5") !== caraSVG("t19-p6"));
+  const svg=caraSVG("t0-p0");
+  assert("devuelve un SVG bien formado", svg.startsWith("<svg") && svg.endsWith("</svg>"));
+
+  // variedad: con 32 equipos x 18 jugadores no debe verse siempre la misma cara
+  const ids=[]; for(let e=0;e<6;e++) for(let p=0;p<18;p++) ids.push("t"+e+"-p"+p);
+  const distintas=new Set(ids.map(caraSVG)).size;
+  assert("108 ids producen ≥30 caras distintas → "+distintas, distintas>=30);
+
+  // rutas: cubren las cuatro posiciones y los extremos de la plantilla
+  assertEq("ruta de jugador", rutaCaraJugador("t19-p5"), "img/caras/t19-p5.png");
+  assertEq("ranura p0 → por-1",  rutaCaraRanura("t19-p0"),  "img/caras/por-1.png");
+  assertEq("ranura p5 → def-4",  rutaCaraRanura("t19-p5"),  "img/caras/def-4.png");
+  assertEq("ranura p8 → med-1",  rutaCaraRanura("t19-p8"),  "img/caras/med-1.png");
+  assertEq("ranura p17 → del-4", rutaCaraRanura("t19-p17"), "img/caras/del-4.png");
+  assertEq("índice fuera de plantilla → null", rutaCaraRanura("t19-p99"), null);
+  assertEq("id sin formato → null", rutaCaraRanura("basura"), null);
+
+  // las ranuras coinciden con las posiciones que reparte generar Liga
+  const eq=generarLiga(()=>0.5)[19];
+  const coincide=eq.jugadores.every(j=>{
+    const pos=rutaCaraRanura(j.id).split("/").pop().split("-")[0];
+    return pos===j.posicion.toLowerCase();
+  });
+  assert("ranura coincide con la posición real de los 18 jugadores", coincide);
+});

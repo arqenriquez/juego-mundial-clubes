@@ -1,10 +1,19 @@
 const JUEGO = { equipos:[], miEquipoId:null, grupos:[], partidosGrupo:[],
   bracket:null, fase:"inicio", jornadaActual:1, ultimaJornada:[], rng: Math.random };
 
+let _vistaActual = null;
+
+// Devuelve true si esto es una LLEGADA a la vista y false si es un re-render de la misma.
+// La distinción evita que el dashboard parpadee al marcar titulares o cambiar formación.
 function mostrarVista(id){
+  const cambio = (id !== _vistaActual);
   document.querySelectorAll(".vista").forEach(v=>v.classList.remove("activa"));
-  document.getElementById(id).classList.add("activa");
+  const el = document.getElementById(id);
+  el.classList.add("activa");
+  if(cambio) reiniciarAnimacion(el, "entra");
+  _vistaActual = id;
   _actualizarTopbar();
+  return cambio;
 }
 
 function _actualizarTopbar(){
@@ -34,16 +43,20 @@ function nuevoJuego(miEquipoId){
   irADashboard();
 }
 
-// Elige 11 titulares válidos según la formación del equipo (mejores por rating)
+// Arma titulares ordenados por SLOT de la formación (índice = slot en la cancha).
+// Para cada slot toma al mejor disponible de esa posición; si no queda, cualquiera.
 function autoAlinear(equipo){
-  const comp={POR:1, ...FORMACIONES[equipo.formacion]};
-  const titulares=[];
-  Object.entries(comp).forEach(([pos,cant])=>{
-    const cand=equipo.jugadores.filter(j=>j.posicion===pos)
-      .sort((a,b)=> (b.ataque+b.defensa+b.velocidad) - (a.ataque+a.defensa+a.velocidad));
-    for(let i=0;i<cant && i<cand.length;i++) titulares.push(cand[i].id);
+  const slots = FORMACION_SLOTS[equipo.formacion];
+  const usados = new Set();
+  const rating = j => j.ataque + j.defensa + j.velocidad;
+  equipo.titulares = slots.map(s=>{
+    let cand = equipo.jugadores.filter(j=>!usados.has(j.id) && j.posicion===s.pos)
+      .sort((a,b)=>rating(b)-rating(a));
+    if(!cand.length) cand = equipo.jugadores.filter(j=>!usados.has(j.id))
+      .sort((a,b)=>rating(b)-rating(a));
+    usados.add(cand[0].id);
+    return cand[0].id;
   });
-  equipo.titulares=titulares;
 }
 
 function arrancar(){
@@ -68,7 +81,7 @@ window.addEventListener("DOMContentLoaded", arrancar);
 
 // ---- Tarea 11: flujo de juego (dashboard, partido, eliminatorias) ----
 
-function irADashboard(){ renderDashboard(); }
+function irADashboard(){ _seleccion=null; renderDashboard(); }
 
 function partidosDeFase(){
   return JUEGO.fase==="grupos" ? JUEGO.partidosGrupo : _partidosRondaActual();

@@ -42,3 +42,110 @@ body{background:var(--bg);color:var(--texto);
 .mini-res{background:var(--panel2);border-radius:6px;padding:6px 8px;font-size:.85rem}
 .campeon{text-align:center}
 .vista-bracket .mio,.panel .mio{color:var(--acento2);font-weight:700}
+
+/* ---- Rostros ---- */
+/* el recorte circular vive en el contenedor: evita clipPath e ids duplicados en los SVG */
+.avatar{display:inline-block;width:var(--t,28px);height:var(--t,28px);
+  border-radius:50%;overflow:hidden;background:var(--panel2);
+  vertical-align:middle;line-height:0;flex:none}
+.avatar img,.avatar svg{display:block;width:100%;height:100%;object-fit:cover}
+.plantilla td.cara,.plantilla th.cara{width:36px;padding:3px 4px}
+
+/* ---- Animaciones ---- */
+@keyframes entrarVista{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.vista.entra{animation:entrarVista .26s cubic-bezier(.2,.7,.3,1) both}
+
+@keyframes entrarFila{from{opacity:0;transform:translateX(-8px)}to{opacity:1;transform:none}}
+.plantilla.cascada tr{animation:entrarFila .3s ease-out both;
+  animation-delay:calc(var(--i,0) * 22ms)}
+
+@keyframes crecerBarra{from{width:0}}
+.plantilla.cascada .barra span{animation:crecerBarra .55s ease-out both;animation-delay:.18s}
+
+@keyframes entrarCard{from{opacity:0;transform:translateY(8px) scale(.97)}to{opacity:1;transform:none}}
+.grid-clubes .club-card{animation:entrarCard .32s ease-out both;
+  animation-delay:calc(var(--i,0) * 14ms)}
+.club-card{transition:border-color .15s,background .15s,transform .12s}
+.club-card:active{transform:scale(.97)}
+.btn{transition:filter .15s,transform .1s}
+.btn:active:not([disabled]){transform:scale(.97)}
+
+@keyframes entrarSubiendo{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.goles li{animation:entrarSubiendo .3s ease-out both;
+  animation-delay:calc(550ms + var(--i,0) * 160ms)}
+.otros .mini-res{animation:entrarSubiendo .3s ease-out both;
+  animation-delay:calc(var(--i,0) * 30ms)}
+
+@keyframes latido{0%{transform:scale(1)}40%{transform:scale(1.22)}100%{transform:scale(1)}}
+.marcador b span{display:inline-block;min-width:1ch}
+.marcador b span.pulso{animation:latido .24s ease-out}
+
+@keyframes pop{0%{opacity:0;transform:scale(.4)}60%{transform:scale(1.12)}100%{opacity:1;transform:scale(1)}}
+.campeon h1{animation:pop .5s cubic-bezier(.2,.9,.3,1.2) both}
+
+/* ---- Cortinilla de simulación ---- */
+#cortina{position:fixed;inset:0;z-index:50;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:14px;
+  background:rgba(13,17,23,.94);opacity:0;visibility:hidden;
+  transition:opacity .22s ease,visibility 0s linear .22s}
+#cortina.visible{opacity:1;visibility:visible;transition:opacity .22s ease,visibility 0s}
+#cortina .balon{font-size:2.8rem;line-height:1;animation:girar 1s linear infinite}
+#cortina-txt{color:var(--tenue);letter-spacing:.5px}
+@keyframes girar{to{transform:rotate(360deg)}}
+
+/* ---- Pantalla de alineación: cancha + banquillo ---- */
+.dt-cab{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+.dt-sub{color:var(--tenue);font-size:.9rem;margin-top:2px}
+.dt-ctrl{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.dt-form{font-size:.85rem;color:var(--tenue);display:flex;align-items:center;gap:6px}
+.dt-form select{background:var(--panel2);color:var(--texto);border:1px solid var(--linea);
+  border-radius:8px;padding:6px 8px;font-size:.9rem}
+.dt-cuerpo{display:flex;gap:16px;align-items:stretch}
+.dt-cuerpo>.cancha{flex:1.5}
+.dt-cuerpo>.banca{flex:1;min-width:240px}
+
+.cancha{position:relative;min-height:470px;border-radius:12px;border:1px solid var(--linea);
+  background:repeating-linear-gradient(0deg,#14351f 0 44px,#123018 44px 88px);overflow:hidden}
+.cancha::before{content:"";position:absolute;left:8%;right:8%;top:50%;
+  border-top:2px solid rgba(255,255,255,.10)}
+.cancha::after{content:"";position:absolute;left:50%;top:50%;width:96px;height:96px;
+  transform:translate(-50%,-50%);border:2px solid rgba(255,255,255,.10);border-radius:50%}
+
+.ficha{background:none;border:none;padding:0;cursor:pointer;color:var(--texto);
+  display:flex;flex-direction:column;align-items:center;gap:3px;width:72px}
+.cancha>.ficha{position:absolute;transform:translate(-50%,-50%)}
+.ficha-cara{position:relative;line-height:0;border-radius:50%;
+  box-shadow:0 0 0 2.5px var(--cpos,var(--linea)),0 2px 6px rgba(0,0,0,.4)}
+.ficha-ovr{position:absolute;right:-5px;bottom:-5px;background:#0d1117;color:var(--amarillo);
+  font-size:.62rem;font-weight:700;border-radius:6px;padding:0 4px;border:1px solid var(--linea);line-height:1.5}
+.ficha-nom{font-size:.72rem;font-weight:600;max-width:72px;white-space:nowrap;overflow:hidden;
+  text-overflow:ellipsis;text-shadow:0 1px 2px rgba(0,0,0,.85)}
+.ficha-stam{width:46px;height:5px;background:rgba(0,0,0,.45);border-radius:3px;overflow:hidden}
+.ficha-stam i{display:block;height:100%}
+.cancha>.ficha:active{transform:translate(-50%,-50%) scale(.94)}
+.banca-grid .ficha:active{transform:scale(.94)}
+.ficha.sel .ficha-cara{box-shadow:0 0 0 3px var(--amarillo),0 0 12px var(--amarillo)}
+.pos-por{--cpos:var(--amarillo)}
+.pos-def{--cpos:var(--acento2)}
+.pos-med{--cpos:var(--acento)}
+.pos-del{--cpos:var(--alerta)}
+
+.banca{background:var(--panel2);border:1px solid var(--linea);border-radius:12px;padding:12px}
+.banca h3{font-size:1rem;margin-bottom:10px}
+.banca-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(76px,1fr));gap:12px 6px}
+.banca-grid .ficha{width:100%}
+.dt-hint{color:var(--tenue);font-size:.78rem;margin:14px 0 8px}
+.dt-links{display:flex;gap:8px;flex-wrap:wrap}
+
+.cancha.cascada .ficha,.banca-grid.cascada .ficha{animation:entrarCard .3s ease-out both;
+  animation-delay:calc(var(--i,0) * 28ms)}
+
+@media(max-width:720px){
+  .dt-cuerpo{flex-direction:column}
+  .cancha{min-height:430px}
+}
+
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{animation-duration:.001s!important;animation-delay:0s!important;
+    animation-iteration-count:1!important;transition-duration:.001s!important}
+}

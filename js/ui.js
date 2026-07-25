@@ -9,6 +9,7 @@ function renderInicio(){
   CIUDADES.forEach((ciudad,i)=>{
     const card=document.createElement("button");
     card.className="club-card"; card.textContent="Club "+ciudad;
+    card.style.setProperty("--i", i); // escalona la entrada de las tarjetas
     card.onclick=()=>elegirClub("t"+i, ciudad);
     grid.appendChild(card);
   });
@@ -49,7 +50,9 @@ function renderGrupos(){
 // ---- Tarea 11: dashboard, partido y bracket ----
 
 function renderDashboard(){
-  mostrarVista("vista-dashboard");
+  // `llegada` distingue entrar al dashboard de re-renderizarlo (marcar titular, cambiar
+  // formación): las animaciones de cascada solo deben correr al llegar.
+  const llegada=mostrarVista("vista-dashboard");
   const mi=_equipo(JUEGO.miEquipoId);
   if(estoyEliminado()){
     const vElim=document.getElementById("vista-dashboard");
@@ -57,7 +60,7 @@ function renderDashboard(){
       <h2>${mi.nombre}</h2>
       <p>Tu equipo quedó <b>eliminado</b> del torneo. Puedes simular el resto para ver quién se corona campeón.</p>
       <div style="margin-top:12px">
-        <button class="btn" onclick="simularRestoTorneo()">▶ Simular resto del torneo</button>
+        <button class="btn" onclick="conCortina('Simulando el resto del torneo…', simularRestoTorneo)">▶ Simular resto del torneo</button>
         <button class="btn sec" onclick="renderBracket()">Ver bracket</button>
       </div></div>`;
     return;
@@ -70,48 +73,92 @@ function renderDashboard(){
     return _equipo(rid);
   })();
   const v=document.getElementById("vista-dashboard");
-  const barra=(val,color)=>`<div class="barra"><span style="width:${val}%;background:${color}"></span></div>`;
-  const formaTxt=f=> (f>0?"+":"")+f;
-  let filas="";
-  ["POR","DEF","MED","DEL"].forEach(pos=>{
-    mi.jugadores.filter(j=>j.posicion===pos).forEach(j=>{
-      const tit=mi.titulares.includes(j.id);
-      filas+=`<tr class="${tit?'titular':''}">
-        <td><input type="checkbox" ${tit?'checked':''} onchange="toggleTitular('${j.id}')"></td>
-        <td>${j.posicion}</td><td>${j.nombre}</td><td>${j.edad}</td>
-        <td>${j.ataque}</td><td>${j.defensa}</td><td>${j.velocidad}</td>
-        <td>${barra(j.cansancio,'var(--alerta)')}</td>
-        <td>${formaTxt(j.forma)}</td></tr>`;
-    });
-  });
+  const slots = FORMACION_SLOTS[mi.formacion];
+  const enCancha = new Set(mi.titulares);
+  const banca = mi.jugadores.filter(j=>!enCancha.has(j.id));
+  const tokens = slots.map((s,i)=>{
+    const j = mi.jugadores.find(x=>x.id===mi.titulares[i]);
+    return _ficha(j, mi.id, 'slot', i, `left:${s.x}%;top:${s.y}%;`, i);
+  }).join("");
+  const bancaFichas = banca.map((j,i)=> _ficha(j, mi.id, 'banca', j.id, '', i)).join("");
   const opciones=Object.keys(FORMACIONES).map(f=>
     `<option ${f===mi.formacion?'selected':''}>${f}</option>`).join("");
-  const nTit=mi.titulares.length;
-  const accion = JUEGO.fase==="grupos" ? "jugarJornadaDeMiPartido()" : "jugarEliminatoria()";
-  v.innerHTML=`<div class="panel">
-    <h2>${mi.nombre}</h2>
-    <p>Próximo rival: <b>${rival?rival.nombre:"—"}</b> · ${JUEGO.fase==="grupos"?`Grupos · Jornada ${JUEGO.jornadaActual}/3`:(JUEGO.bracket?JUEGO.bracket.nombre:JUEGO.fase)}</p>
-    <label>Formación:
-      <select onchange="cambiarFormacion(this.value)">${opciones}</select></label>
-    <span id="conteo-tit" style="margin-left:12px;color:${nTit===11?'var(--acento)':'var(--alerta)'}">
-      Titulares: ${nTit}/11</span>
-    <table class="plantilla"><tr><th>XI</th><th>Pos</th><th>Nombre</th><th>Edad</th>
-      <th>ATA</th><th>DEF</th><th>VEL</th><th>Cansancio</th><th>Forma</th></tr>${filas}</table>
-    <div style="margin-top:12px">
-      <button class="btn" ${nTit!==11?'disabled':''} onclick="${accion}">▶ Jugar mi partido</button>
-      <button class="btn sec" onclick="renderGrupos()">Ver grupos</button>
-      ${JUEGO.bracket?'<button class="btn sec" onclick="renderBracket()">Ver bracket</button>':''}
+  const enGrupos = JUEGO.fase==="grupos";
+  const txtCortina = enGrupos
+    ? `Simulando jornada ${JUEGO.jornadaActual}…`
+    : `Simulando ${JUEGO.bracket ? JUEGO.bracket.nombre : "la ronda"}…`;
+  const accion = `conCortina('${txtCortina}', ${enGrupos?"jugarJornadaDeMiPartido":"jugarEliminatoria"})`;
+  const faseTxt = enGrupos ? `Grupos · Jornada ${JUEGO.jornadaActual}/3`
+    : (JUEGO.bracket?JUEGO.bracket.nombre:JUEGO.fase);
+  v.innerHTML=`<div class="panel dt">
+    <div class="dt-cab">
+      <div><h2>${mi.nombre}</h2><p class="dt-sub">vs <b>${rival?rival.nombre:"—"}</b> · ${faseTxt}</p></div>
+      <div class="dt-ctrl">
+        <label class="dt-form">Formación
+          <select onchange="cambiarFormacion(this.value)">${opciones}</select></label>
+        <button class="btn" onclick="${accion}">▶ Jugar mi partido</button>
+      </div>
+    </div>
+    <div class="dt-cuerpo">
+      <div class="cancha ${llegada?'cascada':''}">${tokens}</div>
+      <div class="banca">
+        <h3>Suplentes</h3>
+        <div class="banca-grid ${llegada?'cascada':''}">${bancaFichas}</div>
+        <p class="dt-hint">Toca un jugador y luego otro para intercambiarlos.</p>
+        <div class="dt-links">
+          <button class="btn sec" onclick="renderGrupos()">Ver grupos</button>
+          ${JUEGO.bracket?'<button class="btn sec" onclick="renderBracket()">Ver bracket</button>':''}
+        </div>
+      </div>
     </div></div>`;
 }
 
-function toggleTitular(id){
+// Selección transitoria para intercambiar jugadores: {tipo:'slot'|'banca', ref:índice|idJugador}
+let _seleccion=null;
+
+// Valoración promedio (OVR) y apellido (última palabra del nombre)
+function _ovr(j){ return Math.round((j.ataque+j.defensa+j.velocidad)/3); }
+function _apellido(nombre){ const p=String(nombre).trim().split(/\s+/); return p[p.length-1]; }
+
+// Ficha de jugador: cara + OVR + apellido + barra de energía. Reutilizada en cancha y banca.
+function _ficha(j, equipoId, tipo, ref, estilo, i){
+  const sel = _seleccion && _seleccion.tipo===tipo && String(_seleccion.ref)===String(ref);
+  const en = Math.max(0, 100 - j.cansancio); // energía = 100 - cansancio
+  const col = en>=60 ? 'var(--acento)' : en>=30 ? 'var(--amarillo)' : 'var(--alerta)';
+  const refArg = tipo==='slot' ? ref : `'${ref}'`;
+  return `<button class="ficha pos-${j.posicion.toLowerCase()} ${sel?'sel':''}" `+
+    `style="${estilo||''}${i!=null?`--i:${i};`:''}" onclick="seleccionar('${tipo}',${refArg})">`+
+    `<span class="ficha-cara">${avatarHTML(j, equipoId, 46)}<b class="ficha-ovr">${_ovr(j)}</b></span>`+
+    `<span class="ficha-nom">${_apellido(j.nombre)}</span>`+
+    `<span class="ficha-stam"><i style="width:${en}%;background:${col}"></i></span>`+
+    `</button>`;
+}
+
+// Un clic selecciona; el segundo intercambia (o deselecciona si es el mismo).
+function seleccionar(tipo, ref){
   const mi=_equipo(JUEGO.miEquipoId);
-  const i=mi.titulares.indexOf(id);
-  if(i>=0) mi.titulares.splice(i,1);
-  else if(mi.titulares.length<11) mi.titulares.push(id);
+  if(_seleccion && _seleccion.tipo===tipo && String(_seleccion.ref)===String(ref)){
+    _seleccion=null; renderDashboard(); return;
+  }
+  if(!_seleccion){ _seleccion={tipo, ref}; renderDashboard(); return; }
+  _intercambiar(mi, _seleccion, {tipo, ref});
+  _seleccion=null;
+  guardarJuego(JUEGO);
   renderDashboard();
 }
-function cambiarFormacion(f){ const mi=_equipo(JUEGO.miEquipoId); mi.formacion=f; autoAlinear(mi); renderDashboard(); }
+
+function _intercambiar(mi, a, b){
+  if(a.tipo==='slot' && b.tipo==='slot'){
+    const t=mi.titulares[a.ref]; mi.titulares[a.ref]=mi.titulares[b.ref]; mi.titulares[b.ref]=t;
+  } else if(a.tipo==='slot' && b.tipo==='banca'){
+    mi.titulares[a.ref]=b.ref;               // el desplazado sale a la banca automáticamente
+  } else if(a.tipo==='banca' && b.tipo==='slot'){
+    mi.titulares[b.ref]=a.ref;
+  }
+  // banca + banca: sin efecto (ambos fuera de la cancha)
+}
+
+function cambiarFormacion(f){ const mi=_equipo(JUEGO.miEquipoId); mi.formacion=f; autoAlinear(mi); _seleccion=null; renderDashboard(); }
 function jugarEliminatoria(){
   const mio=_resolverLlaveMia();
   if(mio) renderResultado(mio);
@@ -123,18 +170,24 @@ function renderResultado(p){
   const nombre=id=>_equipo(id).nombre;
   const nombreJug=(eid,jid)=>{ const e=_equipo(eid); const j=e.jugadores.find(x=>x.id===jid); return j?j.nombre:"?"; };
   const v=document.getElementById("vista-partido");
-  const gol=p.goleadores.map(g=>`<li>${g.minuto}' ${nombreJug(g.equipoId,g.jugadorId)} (${_equipo(g.equipoId).nombre})</li>`).join("");
+  const gol=p.goleadores.map((g,i)=>`<li style="--i:${i}">${g.minuto}' ${nombreJug(g.equipoId,g.jugadorId)} (${_equipo(g.equipoId).nombre})</li>`).join("");
   // otros resultados de la última jornada/ronda jugada (grupos y eliminatorias)
   const otros = (JUEGO.ultimaJornada||[])
     .filter(x=> !(x.localId===p.localId && x.visitanteId===p.visitanteId))
-    .map(x=>`<div class="mini-res">${nombre(x.localId)} ${x.golesLocal}-${x.golesVisitante} ${nombre(x.visitanteId)}</div>`).join("");
+    .map((x,i)=>`<div class="mini-res" style="--i:${i}">${nombre(x.localId)} ${x.golesLocal}-${x.golesVisitante} ${nombre(x.visitanteId)}</div>`).join("");
   const continuar = JUEGO.fase==="campeon" ? "renderBracket()" :
     (proximoPartidoDe(JUEGO.miEquipoId) ? "irADashboard()" : "avanzarFase()");
   v.innerHTML=`<div class="panel">
-    <h2 class="marcador">${nombre(p.localId)} <b>${p.golesLocal} - ${p.golesVisitante}</b> ${nombre(p.visitanteId)}</h2>
+    <h2 class="marcador">${nombre(p.localId)} <b><span id="m-local">0</span> - <span id="m-visita">0</span></b> ${nombre(p.visitanteId)}</h2>
     <ul class="goles">${gol||"<li>Sin goles</li>"}</ul>
     <h3>Otros resultados</h3><div class="otros">${otros||"—"}</div>
     <button class="btn" onclick="${continuar}">Continuar</button></div>`;
+  // se retrasa el conteo para que no quede oculto tras la cortinilla que se desvanece
+  const contar=()=>{
+    contarHasta(v.querySelector("#m-local"),  p.golesLocal,     650);
+    contarHasta(v.querySelector("#m-visita"), p.golesVisitante, 650);
+  };
+  if(animacionReducida()) contar(); else setTimeout(contar, 260);
 }
 
 function renderBracket(){
