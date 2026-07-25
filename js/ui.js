@@ -107,7 +107,11 @@ function renderDashboard(){
           <button class="tab ${_tabBanca==='suplentes'?'on':''}" onclick="mostrarTab('suplentes')">Suplentes</button>
           <button class="tab ${_tabBanca==='tacticas'?'on':''}" onclick="mostrarTab('tacticas')">Tácticas</button>
         </div>
-        ${_tabBanca==='tacticas' ? _panelTacticas(mi) :
+        ${_tabBanca==='tacticas' ?
+          _panelTacticas(mi) +
+          `<p class="dt-hint">Toca un jugador de la cancha para asignarle un rol.</p>` +
+          (function(){const s=_jugadorSel(mi);return s?_panelRol(s,mi.id):'';})()
+          :
           `<div class="banca-grid ${llegada?'cascada':''}">${bancaFichas}</div>
            <p class="dt-hint">Toca un jugador para ver su ficha; toca otro para intercambiarlos.</p>
            ${(function(){const s=_jugadorSel(mi);return s?_panelJugador(s,mi.id):'';})()}`}
@@ -124,7 +128,7 @@ let _seleccion=null;
 // Pestaña activa del panel derecho del dashboard: 'suplentes' | 'tacticas'
 let _tabBanca='suplentes';
 
-function mostrarTab(t){ _tabBanca=t; renderDashboard(); }
+function mostrarTab(t){ _tabBanca=t; _seleccion=null; renderDashboard(); }
 
 // Panel de tácticas: enfoque (segmentado) + línea defensiva (slider), con descripciones
 function _panelTacticas(mi){
@@ -189,15 +193,47 @@ function _ficha(j, equipoId, tipo, ref, estilo, i){
 // Un clic selecciona (y muestra su ficha); el segundo intercambia.
 function seleccionar(tipo, ref){
   const mi=_equipo(JUEGO.miEquipoId);
-  if(_seleccion && _seleccion.tipo===tipo && String(_seleccion.ref)===String(ref)){
-    _seleccion=null; renderDashboard(); return;              // mismo -> deselecciona
+  const mismo = _seleccion && _seleccion.tipo===tipo && String(_seleccion.ref)===String(ref);
+  // En la pestaña Tácticas seleccionar SOLO muestra la ficha de rol (no intercambia)
+  if(_tabBanca==='tacticas'){
+    _seleccion = mismo ? null : {tipo, ref};
+    renderDashboard(); return;
   }
+  if(mismo){ _seleccion=null; renderDashboard(); return; }             // mismo -> deselecciona
   if(!_seleccion){ _seleccion={tipo, ref}; renderDashboard(); return; } // primero -> selecciona
   if(_seleccion.tipo==='banca' && tipo==='banca'){
     _seleccion={tipo, ref}; renderDashboard(); return;       // dos suplentes -> solo muestra la ficha del nuevo
   }
   _intercambiar(mi, _seleccion, {tipo, ref});                // titular<->suplente o entre titulares
   _seleccion=null;
+  guardarJuego(JUEGO);
+  renderDashboard();
+}
+
+// Panel de rol del jugador (pestaña Tácticas): rol actual + descripción + opciones por posición
+function _panelRol(j, equipoId){
+  const roles = ROLES[j.posicion] || {};
+  const actual = (j.rol && roles[j.rol]) ? j.rol : ROL_DEFAULT[j.posicion];
+  const r = roles[actual] || {nombre:"—", desc:""};
+  const btns = Object.entries(roles).map(([k,v])=>
+    `<button class="rol-b ${k===actual?'on':''}" onclick="setRol('${j.id}','${k}')">${v.nombre}</button>`).join("");
+  return `<div class="jugador-info rol-card">
+    <div class="ji-cab">
+      <span class="ji-cara pos-${j.posicion.toLowerCase()}">${avatarHTML(j, equipoId, 44)}</span>
+      <span class="ji-ovr">${_ovr(j)}</span>
+      <div class="ji-id"><b class="ji-nom">${_apellido(j.nombre)}</b>
+        <span class="ji-pos">${_posLarga(j.posicion)}</span></div>
+    </div>
+    <div class="rol-titulo">Rol</div>
+    <div class="rol-nombre">${r.nombre}</div>
+    <p class="tac-desc rol-desc">${r.desc}</p>
+    <div class="rol-opts">${btns}</div>
+  </div>`;
+}
+function setRol(idJugador, rol){
+  const mi=_equipo(JUEGO.miEquipoId);
+  const j=mi.jugadores.find(x=>x.id===idJugador);
+  if(j) j.rol=rol;
   guardarJuego(JUEGO);
   renderDashboard();
 }

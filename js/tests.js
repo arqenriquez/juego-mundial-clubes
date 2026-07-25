@@ -132,6 +132,14 @@ suite("engine.js", ()=>{
   assert("línea alta del local concede más al visitante", xgPartido(locAlta,vis).xgV > xgPartido(locBaja,vis).xgV);
   // táctica por defecto (sin definir) no rompe: equilibrado/50
   assert("sin táctica usa neutral", Number.isFinite(evaluarAlineacion(fuerte).ataque));
+  // ROLES — un defensa "apoyar" ataca más; "defender" defiende más
+  const dApoyar=equipoDe(70,"4-4-2"); dApoyar.jugadores.forEach(j=>{ if(j.posicion==="DEF") j.rol="apoyar"; });
+  const dDefender=equipoDe(70,"4-4-2"); dDefender.jugadores.forEach(j=>{ if(j.posicion==="DEF") j.rol="defender"; });
+  assert("rol apoyar sube ataque vs defender", evaluarAlineacion(dApoyar).ataque > evaluarAlineacion(dDefender).ataque);
+  assert("rol defender sube defensa vs apoyar", evaluarAlineacion(dDefender).defensa > evaluarAlineacion(dApoyar).defensa);
+  // sin rol => neutral (no cambia respecto a no tener rol)
+  const sinRol=equipoDe(70,"4-4-2");
+  assert("sin rol es neutral", evaluarAlineacion(sinRol).ataque === evaluarAlineacion(equipoDe(70,"4-4-2")).ataque);
 });
 
 suite("tournament.js", ()=>{

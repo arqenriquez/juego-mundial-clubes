@@ -3,11 +3,18 @@ const _PESOS = {
   MED:{off:0.6,def:0.6}, DEL:{off:1.0,def:0.2}
 };
 
+// Multiplicadores del ROL del jugador (neutral si no tiene rol asignado)
+function _rolFactor(j){
+  if(!j.rol || typeof ROLES==="undefined" || !ROLES[j.posicion]) return { off:1, def:1 };
+  const r = ROLES[j.posicion][j.rol];
+  return r ? { off:r.off, def:r.def } : { off:1, def:1 };
+}
+
 function _ratingJugador(j){
   // guardas por si faltan atributos (partidas viejas o equipos de prueba)
   const pase   = j.pase   == null ? j.ataque  : j.pase;
   const fisico = j.fisico == null ? 60        : j.fisico;
-  const off = j.ataque*0.5 + pase*0.2 + j.velocidad*0.3;
+  let off = j.ataque*0.5 + pase*0.2 + j.velocidad*0.3;
   let def;
   if(j.posicion==="POR"){
     const portero = j.portero == null ? j.defensa : j.portero;
@@ -15,6 +22,8 @@ function _ratingJugador(j){
   } else {
     def = j.defensa*0.55 + j.velocidad*0.25 + fisico*0.20;
   }
+  const rol=_rolFactor(j);
+  off *= rol.off; def *= rol.def;
   const mult=1-(j.cansancio/100)*0.3;
   const bono=j.forma*1.5;
   return { off: off*mult+bono, def: def*mult+bono };

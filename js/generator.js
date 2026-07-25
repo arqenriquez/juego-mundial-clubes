@@ -33,7 +33,8 @@ function _generarJugador(id, posicion, nivel, rng){
   const pie = _rint(rng,0,3)===0 ? "Izquierdo" : "Derecho"; // ~25% zurdos
   return crearJugador({id, nombre:_nombreAleatorio(rng), posicion,
     edad:_edadAleatoria(rng), ataque:at, defensa:df, velocidad:ve,
-    pase:pa, fisico:fi, portero:po, estatura:est, pieDominante:pie});
+    pase:pa, fisico:fi, portero:po, estatura:est, pieDominante:pie,
+    rol:ROL_DEFAULT[posicion]});
 }
 
 function generarLiga(rng){

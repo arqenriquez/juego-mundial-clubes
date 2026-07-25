@@ -178,6 +178,17 @@ body{background:var(--bg);color:var(--texto);
 .ji-dato span,.ji-stat span{color:var(--tenue)}
 .ji-dato b,.ji-stat b{font-weight:600}
 
+/* ---- Panel de rol (pestaña Tácticas) ---- */
+.rol-titulo{text-align:center;color:var(--tenue);font-size:.78rem;letter-spacing:1px;
+  text-transform:uppercase;margin-top:4px}
+.rol-nombre{text-align:center;font-size:1.15rem;font-weight:800;color:var(--acento);margin:2px 0 4px}
+.rol-desc{text-align:center;min-height:auto}
+.rol-opts{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:10px}
+.rol-b{background:var(--panel2);border:1px solid var(--linea);color:var(--texto);
+  border-radius:8px;padding:6px 10px;font-size:.8rem;cursor:pointer}
+.rol-b:hover{border-color:var(--acento)}
+.rol-b.on{background:var(--acento);color:#04260f;font-weight:700;border-color:var(--acento)}
+
 @media (prefers-reduced-motion: reduce){
   *,*::before,*::after{animation-duration:.001s!important;animation-delay:0s!important;
     animation-iteration-count:1!important;transition-duration:.001s!important}

@@ -16,6 +16,29 @@ const FORMACIONES = {
   "3-5-2": { DEF:3, MED:5, DEL:2 }
 }; // siempre + 1 POR
 
+// Roles por posición. off/def son multiplicadores al aporte del jugador en el motor.
+const ROLES = {
+  POR: {
+    clasico: { nombre:"Clásico", desc:"Portero clásico: se queda en su área y prioriza atajar.", off:1.00, def:1.05 },
+    salida:  { nombre:"Salida limpia", desc:"Juega con los pies y ayuda a construir desde atrás.", off:1.05, def:0.99 }
+  },
+  DEF: {
+    defender: { nombre:"Defender", desc:"Prioriza la marca y la solidez; rara vez sube.", off:0.94, def:1.08 },
+    apoyar:   { nombre:"Apoyar", desc:"Se suma al ataque por su banda; deja algo de espacio atrás.", off:1.12, def:0.93 }
+  },
+  MED: {
+    contencion: { nombre:"Contención", desc:"Recupera y protege a la defensa; poca llegada.", off:0.90, def:1.12 },
+    completo:   { nombre:"Completo", desc:"Box-to-box: equilibra defensa y ataque.", off:1.00, def:1.00 },
+    volante:    { nombre:"Volante", desc:"Creativo y con llegada; arriesga en ataque.", off:1.12, def:0.90 }
+  },
+  DEL: {
+    cazagol:    { nombre:"Cazagol", desc:"Killer del área: vive de finalizar.", off:1.12, def:1.00 },
+    extremo:    { nombre:"Extremo", desc:"Juega abierto: usa velocidad y desborde.", off:1.08, def:0.95 },
+    mediapunta: { nombre:"Mediapunta", desc:"Juega entre líneas: asiste y aparece en el área.", off:1.05, def:1.00 }
+  }
+};
+const ROL_DEFAULT = { POR:"clasico", DEF:"defender", MED:"completo", DEL:"cazagol" };
+
 // Posiciones en la cancha para cada formación (x,y en % ; y pequeña = ataque arriba, POR abajo).
 // El orden de los slots define el orden del arreglo titulares (índice = slot).
 const FORMACION_SLOTS = {

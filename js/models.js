@@ -5,6 +5,7 @@ function crearJugador(o){
     pase:o.pase, fisico:o.fisico, portero:o.portero,
     // datos de ficha
     estatura:o.estatura, pieDominante:o.pieDominante,
+    rol:o.rol||null,
     cansancio:0, forma:0, experiencia:0 };
 }
 function crearEquipo(o){
