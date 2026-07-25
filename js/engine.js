@@ -4,8 +4,17 @@ const _PESOS = {
 };
 
 function _ratingJugador(j){
-  const off=(j.ataque*0.6 + j.velocidad*0.4);
-  const def=(j.defensa*0.6 + j.velocidad*0.4);
+  // guardas por si faltan atributos (partidas viejas o equipos de prueba)
+  const pase   = j.pase   == null ? j.ataque  : j.pase;
+  const fisico = j.fisico == null ? 60        : j.fisico;
+  const off = j.ataque*0.5 + pase*0.2 + j.velocidad*0.3;
+  let def;
+  if(j.posicion==="POR"){
+    const portero = j.portero == null ? j.defensa : j.portero;
+    def = portero*0.75 + j.defensa*0.25;   // el portero define la solidez del arco
+  } else {
+    def = j.defensa*0.55 + j.velocidad*0.25 + fisico*0.20;
+  }
   const mult=1-(j.cansancio/100)*0.3;
   const bono=j.forma*1.5;
   return { off: off*mult+bono, def: def*mult+bono };

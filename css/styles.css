@@ -163,6 +163,21 @@ body{background:var(--bg);color:var(--texto);
 .tac-slider input[type=range]{width:130px;accent-color:var(--acento)}
 .tac-val{font-weight:700;color:var(--texto);min-width:2ch;text-align:right}
 
+/* ---- Ficha de información del jugador ---- */
+.jugador-info{margin-top:14px;background:var(--panel);border:1px solid var(--linea);
+  border-radius:10px;padding:12px;animation:entrarVista .22s ease-out both}
+.ji-cab{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.ji-cara{line-height:0;border-radius:50%;box-shadow:0 0 0 2px var(--cpos,var(--linea))}
+.ji-ovr{font-size:1.35rem;font-weight:800;color:var(--texto)}
+.ji-id{display:flex;flex-direction:column;line-height:1.2}
+.ji-nom{font-size:1rem}
+.ji-pos{font-size:.78rem;color:var(--tenue)}
+.ji-cols{display:grid;grid-template-columns:1fr 1fr;gap:2px 16px}
+.ji-dato,.ji-stat{display:flex;justify-content:space-between;gap:8px;font-size:.82rem;
+  padding:4px 0;border-bottom:1px solid rgba(255,255,255,.06)}
+.ji-dato span,.ji-stat span{color:var(--tenue)}
+.ji-dato b,.ji-stat b{font-weight:600}
+
 @media (prefers-reduced-motion: reduce){
   *,*::before,*::after{animation-duration:.001s!important;animation-delay:0s!important;
     animation-iteration-count:1!important;transition-duration:.001s!important}

@@ -12,9 +12,12 @@ suite("data.js", ()=>{
 
 suite("models.js", ()=>{
   const j = crearJugador({id:"x", nombre:"A B", posicion:"DEL", edad:20,
-    ataque:80, defensa:50, velocidad:75, resistencia:60});
+    ataque:80, defensa:50, velocidad:75, pase:70, fisico:60, portero:45,
+    estatura:180, pieDominante:"Derecho"});
   assertEq("jugador cansancio inicial", j.cansancio, 0);
   assertEq("jugador forma inicial", j.forma, 0);
+  assertEq("jugador conserva pase", j.pase, 70);
+  assertEq("jugador conserva estatura", j.estatura, 180);
   const e = crearEquipo({id:"t1", ciudad:"Roma", nivel:3});
   assertEq("nombre equipo", e.nombre, "Club Roma");
   assertEq("formacion default", e.formacion, "4-4-2");
@@ -34,6 +37,12 @@ suite("generator.js", ()=>{
   assert("nivel entre 1 y 5", e.nivel>=1 && e.nivel<=5);
   const at=e.jugadores[0].ataque;
   assert("atributos en rango", at>=40 && at<=95);
+  // nuevos atributos presentes y coherentes
+  const j0=e.jugadores[0];
+  assert("tiene pase, fisico, portero", j0.pase>=40 && j0.fisico>=40 && j0.portero>=35);
+  assert("estatura y pie definidos", j0.estatura>=163 && (j0.pieDominante==="Derecho"||j0.pieDominante==="Izquierdo"));
+  const por=e.jugadores.find(j=>j.posicion==="POR"), campo=e.jugadores.find(j=>j.posicion==="DEL");
+  assert("portero del POR alto y del DEL bajo", por.portero>campo.portero);
   // equipos de mayor nivel tienen mejor media
   const media = t=> t.jugadores.reduce((s,j)=>s+(j.ataque+j.defensa+j.velocidad)/3,0)/t.jugadores.length;
   const fuerte = liga.find(t=>t.nivel===5), debil = liga.find(t=>t.nivel===1);
@@ -42,14 +51,14 @@ suite("generator.js", ()=>{
 
 suite("mechanics.js", ()=>{
   const base=()=>crearJugador({id:"x",nombre:"A",posicion:"MED",edad:20,
-    ataque:60,defensa:60,velocidad:60,resistencia:50});
+    ataque:60,defensa:60,velocidad:60,pase:60,fisico:50});
   // cansancio sube al jugar
   let j=base(); aplicarCansancio(j,true);
   assert("cansancio sube al jugar", j.cansancio>0 && j.cansancio<=100);
-  // más resistencia = se cansa menos
-  let a=base(); a.resistencia=90; let b=base(); b.resistencia=40;
+  // más físico = se cansa menos
+  let a=base(); a.fisico=90; let b=base(); b.fisico=40;
   aplicarCansancio(a,true); aplicarCansancio(b,true);
-  assert("más resistencia se cansa menos", a.cansancio < b.cansancio);
+  assert("más físico se cansa menos", a.cansancio < b.cansancio);
   // descanso baja
   let c=base(); c.cansancio=50; aplicarCansancio(c,false);
   assert("descanso baja cansancio", c.cansancio<50);
@@ -70,9 +79,9 @@ suite("mechanics.js", ()=>{
   aplicarProgresion(jExp,true,()=>0.99); // ritmo 30 => 115, sube 1 y quedan 15
   assertEq("experiencia conserva sobrante", jExp.experiencia, 15);
   // tope de atributo en 95: no sube y subio es null
-  let jTope=base(); jTope.edad=20; jTope.experiencia=95; jTope.resistencia=95;
-  let rTope=aplicarProgresion(jTope,true,()=>0.99); // rng elige indice 3 = "resistencia"
-  assertEq("atributo topado en 95 no sube", jTope.resistencia, 95);
+  let jTope=base(); jTope.edad=20; jTope.experiencia=95; jTope.fisico=95;
+  let rTope=aplicarProgresion(jTope,true,()=>0.99); // rng elige indice 4 = "fisico"
+  assertEq("atributo topado en 95 no sube", jTope.fisico, 95);
   assert("subio es null si el atributo ya esta topado", rTope.subio===null);
   // declive del veterano: 33+ puede perder velocidad (piso 40)
   let jVet=base(); jVet.edad=35; jVet.velocidad=80; jVet.experiencia=0;
@@ -89,7 +98,7 @@ suite("engine.js", ()=>{
     Object.entries(comp).forEach(([pos,cant])=>{
       for(let c=0;c<cant;c++){
         jugadores.push(crearJugador({id:"j"+(id++),nombre:"x",posicion:pos,edad:25,
-          ataque:rating,defensa:rating,velocidad:rating,resistencia:80}));
+          ataque:rating,defensa:rating,velocidad:rating,pase:rating,fisico:rating,portero:rating}));
       }
     });
     const e=crearEquipo({id:"e"+rating,ciudad:"Z",nivel:3});

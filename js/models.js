@@ -1,6 +1,10 @@
 function crearJugador(o){
   return { id:o.id, nombre:o.nombre, posicion:o.posicion, edad:o.edad,
-    ataque:o.ataque, defensa:o.defensa, velocidad:o.velocidad, resistencia:o.resistencia,
+    // atributos de juego (40-95); fisico influye en el cansancio; portero solo pesa en el POR
+    ataque:o.ataque, defensa:o.defensa, velocidad:o.velocidad,
+    pase:o.pase, fisico:o.fisico, portero:o.portero,
+    // datos de ficha
+    estatura:o.estatura, pieDominante:o.pieDominante,
     cansancio:0, forma:0, experiencia:0 };
 }
 function crearEquipo(o){

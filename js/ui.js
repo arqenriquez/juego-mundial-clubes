@@ -109,7 +109,8 @@ function renderDashboard(){
         </div>
         ${_tabBanca==='tacticas' ? _panelTacticas(mi) :
           `<div class="banca-grid ${llegada?'cascada':''}">${bancaFichas}</div>
-           <p class="dt-hint">Toca un jugador y luego otro para intercambiarlos.</p>`}
+           <p class="dt-hint">Toca un jugador para ver su ficha; toca otro para intercambiarlos.</p>
+           ${(function(){const s=_jugadorSel(mi);return s?_panelJugador(s,mi.id):'';})()}`}
         <div class="dt-links">
           <button class="btn sec" onclick="renderGrupos()">Ver grupos</button>
           ${JUEGO.bracket?'<button class="btn sec" onclick="renderBracket()">Ver bracket</button>':''}
@@ -161,8 +162,14 @@ function setLinea(v){
   const d=document.getElementById("tac-linea-desc"); if(d) d.textContent=_descLinea(v);
 }
 
-// Valoración promedio (OVR) y apellido (última palabra del nombre)
-function _ovr(j){ return Math.round((j.ataque+j.defensa+j.velocidad)/3); }
+// Valoración (OVR) ponderada por posición, y apellido (última palabra del nombre)
+function _ovr(j){
+  const pase=j.pase==null?j.ataque:j.pase, fis=j.fisico==null?60:j.fisico, por=j.portero==null?j.defensa:j.portero;
+  if(j.posicion==="POR") return Math.round(por*0.75 + j.defensa*0.25);
+  if(j.posicion==="DEF") return Math.round(j.defensa*0.45 + j.velocidad*0.20 + fis*0.20 + pase*0.15);
+  if(j.posicion==="DEL") return Math.round(j.ataque*0.50 + j.velocidad*0.25 + pase*0.25);
+  return Math.round(pase*0.35 + j.ataque*0.25 + j.defensa*0.20 + j.velocidad*0.20); // MED
+}
 function _apellido(nombre){ const p=String(nombre).trim().split(/\s+/); return p[p.length-1]; }
 
 // Ficha de jugador: cara + OVR + apellido + barra de energía. Reutilizada en cancha y banca.
@@ -179,17 +186,60 @@ function _ficha(j, equipoId, tipo, ref, estilo, i){
     `</button>`;
 }
 
-// Un clic selecciona; el segundo intercambia (o deselecciona si es el mismo).
+// Un clic selecciona (y muestra su ficha); el segundo intercambia.
 function seleccionar(tipo, ref){
   const mi=_equipo(JUEGO.miEquipoId);
   if(_seleccion && _seleccion.tipo===tipo && String(_seleccion.ref)===String(ref)){
-    _seleccion=null; renderDashboard(); return;
+    _seleccion=null; renderDashboard(); return;              // mismo -> deselecciona
   }
-  if(!_seleccion){ _seleccion={tipo, ref}; renderDashboard(); return; }
-  _intercambiar(mi, _seleccion, {tipo, ref});
+  if(!_seleccion){ _seleccion={tipo, ref}; renderDashboard(); return; } // primero -> selecciona
+  if(_seleccion.tipo==='banca' && tipo==='banca'){
+    _seleccion={tipo, ref}; renderDashboard(); return;       // dos suplentes -> solo muestra la ficha del nuevo
+  }
+  _intercambiar(mi, _seleccion, {tipo, ref});                // titular<->suplente o entre titulares
   _seleccion=null;
   guardarJuego(JUEGO);
   renderDashboard();
+}
+
+// Jugador actualmente seleccionado (de la cancha o del banquillo), o null
+function _jugadorSel(mi){
+  if(!_seleccion) return null;
+  const id = _seleccion.tipo==='slot' ? mi.titulares[_seleccion.ref] : _seleccion.ref;
+  return mi.jugadores.find(j=>j.id===id) || null;
+}
+
+// Ficha de información detallada del jugador (estilo tarjeta de juego)
+function _colorStat(v){ return v>=82?'var(--acento)':v>=68?'var(--texto)':v>=55?'var(--amarillo)':'var(--alerta)'; }
+function _statFila(lbl,v){ return `<div class="ji-stat"><span>${lbl}</span><b style="color:${_colorStat(v)}">${v}</b></div>`; }
+function _posLarga(p){ return {POR:"Portero",DEF:"Defensa",MED:"Mediocampista",DEL:"Delantero"}[p]||p; }
+function _panelJugador(j, equipoId){
+  const en=100-j.cansancio;
+  return `<div class="jugador-info">
+    <div class="ji-cab">
+      <span class="ji-cara pos-${j.posicion.toLowerCase()}">${avatarHTML(j, equipoId, 52)}</span>
+      <span class="ji-ovr">${_ovr(j)}</span>
+      <div class="ji-id"><b class="ji-nom">${_apellido(j.nombre)}</b>
+        <span class="ji-pos">${_posLarga(j.posicion)}</span></div>
+    </div>
+    <div class="ji-cols">
+      <div class="ji-col">
+        <div class="ji-dato"><span>Nombre</span><b>${j.nombre}</b></div>
+        <div class="ji-dato"><span>Edad</span><b>${j.edad}</b></div>
+        <div class="ji-dato"><span>Estatura</span><b>${j.estatura} cm</b></div>
+        <div class="ji-dato"><span>Pie</span><b>${j.pieDominante}</b></div>
+        <div class="ji-dato"><span>Energía</span><b>${en}%</b></div>
+      </div>
+      <div class="ji-col">
+        ${_statFila("Velocidad", j.velocidad)}
+        ${_statFila("Ataque", j.ataque)}
+        ${_statFila("Pase", j.pase)}
+        ${_statFila("Defensa", j.defensa)}
+        ${_statFila("Físico", j.fisico)}
+        ${_statFila("Portero", j.portero)}
+      </div>
+    </div>
+  </div>`;
 }
 
 function _intercambiar(mi, a, b){

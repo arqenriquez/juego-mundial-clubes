@@ -1,6 +1,6 @@
 function aplicarCansancio(jugador, jugo){
   if(jugo){
-    const aumento = 15 + Math.round((100 - jugador.resistencia)*0.2); // 15..27
+    const aumento = 15 + Math.round((100 - jugador.fisico)*0.2); // más físico, menos cansancio
     jugador.cansancio = Math.min(100, jugador.cansancio + aumento);
   } else {
     jugador.cansancio = Math.max(0, jugador.cansancio - 25);
@@ -18,7 +18,7 @@ function _ritmoCrecimiento(edad){
   return 5;
 }
 
-const _ATRIBUTOS = ["ataque","defensa","velocidad","resistencia"];
+const _ATRIBUTOS = ["ataque","defensa","velocidad","pase","fisico"];
 
 function aplicarProgresion(jugador, jugo, rng){
   const res={subio:null, bajo:null};
