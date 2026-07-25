@@ -5,7 +5,9 @@ function crearJugador(o){
 }
 function crearEquipo(o){
   return { id:o.id, nombre:"Club "+o.ciudad, ciudad:o.ciudad, nivel:o.nivel,
-    esHumano:false, jugadores:[], formacion:"4-4-2", titulares:[] };
+    esHumano:false, jugadores:[], formacion:"4-4-2", titulares:[],
+    // táctica: enfoque desplaza ataque/defensa; linea (0-100) es la altura defensiva
+    tactica:{ enfoque:"equilibrado", linea:50 } };
 }
 function crearPartido(o){
   return { id:o.id, ronda:o.ronda, grupo:o.grupo||null, jornada:o.jornada||null,

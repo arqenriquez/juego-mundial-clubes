@@ -145,6 +145,24 @@ body{background:var(--bg);color:var(--texto);
   .cancha{min-height:430px}
 }
 
+/* ---- Pestañas del panel derecho + tácticas ---- */
+.banca-tabs{display:flex;gap:6px;margin-bottom:12px}
+.banca-tabs .tab{flex:1;background:none;border:none;border-bottom:2px solid transparent;
+  color:var(--tenue);font-weight:600;font-size:.9rem;padding:6px 4px;cursor:pointer}
+.banca-tabs .tab.on{color:var(--texto);border-bottom-color:var(--acento)}
+.banca-tabs .tab:hover{color:var(--texto)}
+
+.tacticas{margin-bottom:6px}
+.tac-campo{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:10px}
+.tac-lbl{font-size:.85rem;color:var(--tenue)}
+.seg{display:flex;background:var(--panel);border:1px solid var(--linea);border-radius:8px;overflow:hidden}
+.seg-b{background:none;border:none;color:var(--tenue);font-size:.8rem;padding:6px 10px;cursor:pointer}
+.seg-b.on{background:var(--acento);color:#04260f;font-weight:700}
+.tac-desc{font-size:.78rem;color:var(--tenue);margin-top:6px;min-height:2.4em}
+.tac-slider{display:flex;align-items:center;gap:10px}
+.tac-slider input[type=range]{width:130px;accent-color:var(--acento)}
+.tac-val{font-weight:700;color:var(--texto);min-width:2ch;text-align:right}
+
 @media (prefers-reduced-motion: reduce){
   *,*::before,*::after{animation-duration:.001s!important;animation-delay:0s!important;
     animation-iteration-count:1!important;transition-duration:.001s!important}

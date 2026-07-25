@@ -11,6 +11,14 @@ function _ratingJugador(j){
   return { off: off*mult+bono, def: def*mult+bono };
 }
 
+// Táctica del equipo con valores por defecto (equipos viejos o CPU sin táctica definida)
+function _tactica(equipo){
+  const t = (equipo && equipo.tactica) || {};
+  return { enfoque: t.enfoque || "equilibrado", linea: (t.linea==null ? 50 : t.linea) };
+}
+function _e(enfoque){ return enfoque==="ofensivo" ? 1 : enfoque==="defensivo" ? -1 : 0; }
+function _l(linea){ return (linea - 50) / 50; } // -1 (baja) .. +1 (alta)
+
 function evaluarAlineacion(equipo){
   const titulares = equipo.titulares
     .map(id=>equipo.jugadores.find(j=>j.id===id))
@@ -21,7 +29,21 @@ function evaluarAlineacion(equipo){
     ataque += r.off*p.off;
     defensa += r.def*p.def;
   });
+  // Enfoque: ofensivo sube ataque y baja defensa; defensivo al revés
+  const e = _e(_tactica(equipo).enfoque);
+  ataque  *= (1 + 0.15*e);
+  defensa *= (1 - 0.12*e);
   return { ataque, defensa };
+}
+
+// Goles esperados de un partido, con el efecto de la LÍNEA defensiva de ambos equipos.
+// Línea alta: presionas (atacas algo más) pero dejas espacio a tu espalda (concedes más).
+function xgPartido(equipoLocal, equipoVisitante){
+  const L=evaluarAlineacion(equipoLocal), V=evaluarAlineacion(equipoVisitante);
+  const lL=_l(_tactica(equipoLocal).linea), lV=_l(_tactica(equipoVisitante).linea);
+  const xgL = golesEsperados(L.ataque, V.defensa, 0.25) * (1 + 0.06*lL) * (1 + 0.14*lV);
+  const xgV = golesEsperados(V.ataque, L.defensa, 0.0)  * (1 + 0.06*lV) * (1 + 0.14*lL);
+  return { xgL: Math.max(0.15, xgL), xgV: Math.max(0.15, xgV) };
 }
 
 function golesEsperados(ataquePropio, defensaRival, ventajaLocal){
@@ -37,10 +59,7 @@ function _muestreaPoisson(lambda, rng){
 }
 
 function simularPartido(equipoLocal, equipoVisitante, rng){
-  const L=evaluarAlineacion(equipoLocal);
-  const V=evaluarAlineacion(equipoVisitante);
-  const xgL=golesEsperados(L.ataque, V.defensa, 0.25); // ventaja de local
-  const xgV=golesEsperados(V.ataque, L.defensa, 0.0);
+  const { xgL, xgV } = xgPartido(equipoLocal, equipoVisitante);
   const gL=Math.min(7,_muestreaPoisson(xgL,rng));
   const gV=Math.min(7,_muestreaPoisson(xgV,rng));
   const goleadores=[];

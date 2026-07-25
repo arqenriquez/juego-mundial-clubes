@@ -54,6 +54,7 @@ function renderDashboard(){
   // formación): las animaciones de cascada solo deben correr al llegar.
   const llegada=mostrarVista("vista-dashboard");
   const mi=_equipo(JUEGO.miEquipoId);
+  if(mi && !mi.tactica) mi.tactica={enfoque:"equilibrado",linea:50}; // partidas viejas
   if(estoyEliminado()){
     const vElim=document.getElementById("vista-dashboard");
     vElim.innerHTML=`<div class="panel">
@@ -102,9 +103,13 @@ function renderDashboard(){
     <div class="dt-cuerpo">
       <div class="cancha ${llegada?'cascada':''}">${tokens}</div>
       <div class="banca">
-        <h3>Suplentes</h3>
-        <div class="banca-grid ${llegada?'cascada':''}">${bancaFichas}</div>
-        <p class="dt-hint">Toca un jugador y luego otro para intercambiarlos.</p>
+        <div class="banca-tabs">
+          <button class="tab ${_tabBanca==='suplentes'?'on':''}" onclick="mostrarTab('suplentes')">Suplentes</button>
+          <button class="tab ${_tabBanca==='tacticas'?'on':''}" onclick="mostrarTab('tacticas')">Tácticas</button>
+        </div>
+        ${_tabBanca==='tacticas' ? _panelTacticas(mi) :
+          `<div class="banca-grid ${llegada?'cascada':''}">${bancaFichas}</div>
+           <p class="dt-hint">Toca un jugador y luego otro para intercambiarlos.</p>`}
         <div class="dt-links">
           <button class="btn sec" onclick="renderGrupos()">Ver grupos</button>
           ${JUEGO.bracket?'<button class="btn sec" onclick="renderBracket()">Ver bracket</button>':''}
@@ -115,6 +120,46 @@ function renderDashboard(){
 
 // Selección transitoria para intercambiar jugadores: {tipo:'slot'|'banca', ref:índice|idJugador}
 let _seleccion=null;
+// Pestaña activa del panel derecho del dashboard: 'suplentes' | 'tacticas'
+let _tabBanca='suplentes';
+
+function mostrarTab(t){ _tabBanca=t; renderDashboard(); }
+
+// Panel de tácticas: enfoque (segmentado) + línea defensiva (slider), con descripciones
+function _panelTacticas(mi){
+  const t=mi.tactica;
+  const opE=[["defensivo","Defensivo"],["equilibrado","Equilibrado"],["ofensivo","Ofensivo"]];
+  const seg=opE.map(([v,l])=>`<button class="seg-b ${t.enfoque===v?'on':''}" onclick="setEnfoque('${v}')">${l}</button>`).join("");
+  return `<div class="tacticas">
+    <div class="tac-campo"><label class="tac-lbl">Enfoque</label>
+      <div class="seg">${seg}</div></div>
+    <p class="tac-desc">${_descEnfoque(t.enfoque)}</p>
+    <div class="tac-campo"><label class="tac-lbl">Línea defensiva</label>
+      <div class="tac-slider">
+        <input type="range" min="0" max="100" value="${t.linea}"
+          oninput="setLinea(this.value)" onchange="guardarJuego(JUEGO)">
+        <span id="tac-linea-val" class="tac-val">${t.linea}</span>
+      </div></div>
+    <p class="tac-desc" id="tac-linea-desc">${_descLinea(t.linea)}</p>
+  </div>`;
+}
+function _descEnfoque(e){
+  return e==="ofensivo" ? "Busca el gol arriesgando: más ataque, pero más expuesto atrás."
+    : e==="defensivo" ? "Primero no encajar: más solidez atrás, menos peligro arriba."
+    : "Reparte el esfuerzo entre atacar y defender.";
+}
+function _descLinea(l){
+  l=+l;
+  return l>=65 ? "Línea alta: presionas arriba y atacas más, pero te exponen a la espalda."
+    : l<=35 ? "Línea baja: te repliegas, concedes menos pero generas menos."
+    : "Línea media: equilibrio entre presión y repliegue.";
+}
+function setEnfoque(e){ const mi=_equipo(JUEGO.miEquipoId); mi.tactica.enfoque=e; guardarJuego(JUEGO); renderDashboard(); }
+function setLinea(v){
+  const mi=_equipo(JUEGO.miEquipoId); mi.tactica.linea=+v;
+  const val=document.getElementById("tac-linea-val"); if(val) val.textContent=v;
+  const d=document.getElementById("tac-linea-desc"); if(d) d.textContent=_descLinea(v);
+}
 
 // Valoración promedio (OVR) y apellido (última palabra del nombre)
 function _ovr(j){ return Math.round((j.ataque+j.defensa+j.velocidad)/3); }

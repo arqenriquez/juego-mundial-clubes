@@ -109,6 +109,20 @@ suite("engine.js", ()=>{
   const r=simularPartido(fuerte,debil,rng);
   assert("goles locales enteros>=0", Number.isInteger(r.golesLocal)&&r.golesLocal>=0);
   assertEq("goleadores = suma de goles", r.goleadores.length, r.golesLocal+r.golesVisitante);
+  // TÁCTICA — enfoque
+  const ofe=equipoDe(70,"4-4-2"); ofe.tactica={enfoque:"ofensivo",linea:50};
+  const neu=equipoDe(70,"4-4-2"); neu.tactica={enfoque:"equilibrado",linea:50};
+  const def=equipoDe(70,"4-4-2"); def.tactica={enfoque:"defensivo",linea:50};
+  assert("enfoque ofensivo sube ataque", evaluarAlineacion(ofe).ataque > evaluarAlineacion(neu).ataque);
+  assert("enfoque ofensivo baja defensa", evaluarAlineacion(ofe).defensa < evaluarAlineacion(neu).defensa);
+  assert("enfoque defensivo sube defensa", evaluarAlineacion(def).defensa > evaluarAlineacion(neu).defensa);
+  // TÁCTICA — línea: el local con línea alta concede más (el visitante marca más)
+  const locAlta=equipoDe(70,"4-4-2"); locAlta.tactica={enfoque:"equilibrado",linea:90};
+  const locBaja=equipoDe(70,"4-4-2"); locBaja.tactica={enfoque:"equilibrado",linea:10};
+  const vis=equipoDe(70,"4-4-2");
+  assert("línea alta del local concede más al visitante", xgPartido(locAlta,vis).xgV > xgPartido(locBaja,vis).xgV);
+  // táctica por defecto (sin definir) no rompe: equilibrado/50
+  assert("sin táctica usa neutral", Number.isFinite(evaluarAlineacion(fuerte).ataque));
 });
 
 suite("tournament.js", ()=>{
