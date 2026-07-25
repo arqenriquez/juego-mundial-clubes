@@ -208,3 +208,32 @@ suite("avatar.js", ()=>{
   });
   assert("ranura coincide con la posición real de los 18 jugadores", coincide);
 });
+
+suite("partido2d.js", ()=>{
+  function eq(id, formacion){
+    const js=[]; let k=0; const comp={POR:1, ...FORMACIONES[formacion]};
+    Object.entries(comp).forEach(([pos,c])=>{ for(let i=0;i<c;i++)
+      js.push(crearJugador({id:id+"-p"+(k++),nombre:"Ape Llido",posicion:pos,edad:25,
+        ataque:70,defensa:70,velocidad:70,pase:70,fisico:70,portero:70})); });
+    const e=crearEquipo({id,ciudad:"Z",nivel:3}); e.jugadores=js; e.formacion=formacion;
+    e.titulares=js.map(j=>j.id); return e;
+  }
+  const A=eq("a","4-4-2"), B=eq("b","4-4-2");
+  const goles=[{minuto:20,equipoId:"a",jugadorId:"a-p9"},
+               {minuto:35,equipoId:"a",jugadorId:"a-p10"},
+               {minuto:70,equipoId:"b",jugadorId:"b-p9"}];
+  const S=nuevaSim2D(A,B,goles,9000); // dur 9s => 90'
+  for(let i=0;i<320;i++) S.paso(30);   // ~9.6s de simulación
+  assert("el reloj llega a 90'", S.min>=88);
+  assert("marcador refleja los goles (2-1)", S.gl===2 && S.gv===1);
+  // los bloques se desplazaron (la línea sube/baja según posesión y balón)
+  assert("los bloques se movieron", Math.abs(S.offL)>0.5 || Math.abs(S.offR)>0.5);
+  // los jugadores de campo se movieron de su posición base
+  const movidos=S.L.filter(p=>p.pos!=="POR" && (Math.abs(p.cx-p.bx)>0.5||Math.abs(p.cy-p.by)>0.5)).length;
+  assert("los jugadores se movieron de su base", movidos>=5);
+  // el balón terminó dentro de la cancha (no se fue a NaN)
+  assert("balón en rango", S.ballX>=0 && S.ballX<=100 && S.ballY>=0 && S.ballY<=100);
+  // determinismo de posición inicial (mapa de slots)
+  const m=_p2dMapa({pos:"POR",x:50,y:90}, true);
+  assert("portero izquierdo cerca de su arco", m.x<10);
+});
