@@ -85,10 +85,6 @@ function renderDashboard(){
   const opciones=Object.keys(FORMACIONES).map(f=>
     `<option ${f===mi.formacion?'selected':''}>${f}</option>`).join("");
   const enGrupos = JUEGO.fase==="grupos";
-  const txtCortina = enGrupos
-    ? `Simulando jornada ${JUEGO.jornadaActual}…`
-    : `Simulando ${JUEGO.bracket ? JUEGO.bracket.nombre : "la ronda"}…`;
-  const accion = `conCortina('${txtCortina}', ${enGrupos?"jugarJornadaDeMiPartido":"jugarEliminatoria"})`;
   const faseTxt = enGrupos ? `Grupos · Jornada ${JUEGO.jornadaActual}/3`
     : (JUEGO.bracket?JUEGO.bracket.nombre:JUEGO.fase);
   v.innerHTML=`<div class="panel dt">
@@ -97,7 +93,7 @@ function renderDashboard(){
       <div class="dt-ctrl">
         <label class="dt-form">Formación
           <select onchange="cambiarFormacion(this.value)">${opciones}</select></label>
-        <button class="btn" onclick="${accion}">▶ Jugar mi partido</button>
+        <button class="btn" onclick="elegirModoPartido()">▶ Jugar mi partido</button>
       </div>
     </div>
     <div class="dt-cuerpo">

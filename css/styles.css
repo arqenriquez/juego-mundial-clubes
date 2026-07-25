@@ -189,6 +189,46 @@ body{background:var(--bg);color:var(--texto);
 .rol-b:hover{border-color:var(--acento)}
 .rol-b.on{background:var(--acento);color:#04260f;font-weight:700;border-color:var(--acento)}
 
+/* ---- Vista 2D del partido ---- */
+#p2d{position:fixed;inset:0;z-index:60;background:var(--bg);display:flex;flex-direction:column;
+  padding:14px;gap:12px;overflow:auto}
+.p2d-top{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.p2d-min{background:var(--panel2);border:1px solid var(--linea);border-radius:6px;padding:4px 10px;
+  font-weight:700;min-width:48px;text-align:center}
+.p2d-marc{font-size:1rem;display:flex;align-items:center;gap:8px}
+.p2d-marc span{font-weight:800;font-size:1.3rem;color:var(--acento)}
+.p2d-marc em{color:var(--tenue);font-style:normal}
+.p2d-campo{position:relative;flex:1;min-height:340px;border-radius:12px;border:2px solid rgba(255,255,255,.12);
+  background:repeating-linear-gradient(90deg,#14351f 0 46px,#123018 46px 92px);overflow:hidden;transition:box-shadow .2s}
+.p2d-campo.gol{box-shadow:inset 0 0 70px var(--acento)}
+.p2d-media{position:absolute;left:50%;top:0;bottom:0;width:2px;background:rgba(255,255,255,.12)}
+.p2d-circulo{position:absolute;left:50%;top:50%;width:120px;height:120px;transform:translate(-50%,-50%);
+  border:2px solid rgba(255,255,255,.12);border-radius:50%}
+.p2d-arco{position:absolute;top:34%;bottom:34%;width:16px;border:2px solid rgba(255,255,255,.18)}
+.p2d-arco.iz{left:0;border-left:none} .p2d-arco.de{right:0;border-right:none}
+.p2d-lado{position:absolute;top:50%;transform:translateY(-50%);writing-mode:vertical-rl;
+  color:rgba(255,255,255,.35);font-weight:800;letter-spacing:2px;font-size:.9rem}
+.p2d-lado.iz{left:4px} .p2d-lado.de{right:4px}
+.p2d-dot{position:absolute;width:24px;height:24px;border-radius:50%;transform:translate(-50%,-50%);
+  display:flex;align-items:center;justify-content:center;font-size:.72rem;font-weight:700;color:#04260f;
+  box-shadow:0 2px 4px rgba(0,0,0,.4);will-change:left,top}
+.p2d-ball{position:absolute;width:12px;height:12px;border-radius:50%;background:#fff;transform:translate(-50%,-50%);
+  box-shadow:0 0 6px rgba(255,255,255,.7);will-change:left,top;z-index:2}
+.p2d-eventos{background:var(--panel);border:1px solid var(--linea);border-radius:10px;padding:10px;
+  max-height:120px;overflow:auto}
+.p2d-eventos b{display:block;color:var(--tenue);font-size:.8rem;margin-bottom:6px}
+.p2d-ev{font-size:.85rem;padding:2px 0;animation:entrarSubiendo .3s ease-out both}
+
+/* ---- Selector de modo de partido ---- */
+.modo-ov{position:fixed;inset:0;z-index:60;background:rgba(13,17,23,.8);
+  display:flex;align-items:center;justify-content:center}
+.modo-caja{background:var(--panel);border:1px solid var(--linea);border-radius:14px;
+  padding:22px;max-width:340px;width:90%;text-align:center}
+.modo-caja h3{margin-bottom:14px}
+.modo-opts{display:flex;flex-direction:column;gap:10px}
+.modo-opts .btn{width:100%;padding:14px}
+.modo-cancel{margin-top:14px;background:none;border:none;color:var(--tenue);cursor:pointer;font-size:.85rem}
+
 @media (prefers-reduced-motion: reduce){
   *,*::before,*::after{animation-duration:.001s!important;animation-delay:0s!important;
     animation-iteration-count:1!important;transition-duration:.001s!important}

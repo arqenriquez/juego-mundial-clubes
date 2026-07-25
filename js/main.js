@@ -177,34 +177,88 @@ function _partidosRondaActual(){
     jugado:false, goleadores:[], _llave:l }));
 }
 
-// sobre-escribe la simulación para eliminatorias (desempate por penales aleatorio)
+// Resuelve UNA llave de eliminatoria (con desempate por "penales") y marca al ganador
+function _resolverUnaLlave(p){
+  const L=_equipo(p.localId), V=_equipo(p.visitanteId);
+  const r=simularPartido(L,V,JUEGO.rng);
+  let gL=r.golesLocal, gV=r.golesVisitante;
+  if(gL===gV){ (JUEGO.rng()<0.5)?gL++:gV++; } // "penales"
+  p.golesLocal=gL; p.golesVisitante=gV; p.goleadores=r.goleadores; p.jugado=true;
+  p._llave.ganadorId = gL>gV ? p.localId : p.visitanteId;
+  aplicarPostPartido(p);
+  return p;
+}
+
+// Construye la siguiente ronda con los ganadores (o corona campeón)
+function _avanzarBracket(){
+  const ganadores=JUEGO.bracket.llaves.map(l=>l.ganadorId);
+  if(ganadores.length===1){ JUEGO.fase="campeon"; return; }
+  const nuevas=[];
+  for(let i=0;i<ganadores.length;i+=2)
+    nuevas.push({localId:ganadores[i], visitanteId:ganadores[i+1], ganadorId:null});
+  JUEGO.bracket={ nombre:nombreRonda(ganadores.length), llaves:nuevas, siguiente:null };
+}
+
+// INSTANT: resuelve toda la ronda actual y avanza. Devuelve mi partido (o null).
 function _resolverLlaveMia(){
   const pendientes=_partidosRondaActual();
-  // NOTA (fix Tarea 11): "mio" se toma del propio arreglo `pendientes` que el
-  // forEach muta, en vez de una segunda llamada a _partidosRondaActual()
-  // (que crea objetos nuevos cada vez y nunca reflejaría el resultado jugado).
   let mio=null;
-  pendientes.forEach(p=>{
-    const L=_equipo(p.localId), V=_equipo(p.visitanteId);
-    const r=simularPartido(L,V,JUEGO.rng);
-    let gL=r.golesLocal, gV=r.golesVisitante;
-    if(gL===gV){ (JUEGO.rng()<0.5)?gL++:gV++; } // "penales"
-    p.golesLocal=gL; p.golesVisitante=gV; p.goleadores=r.goleadores; p.jugado=true;
-    p._llave.ganadorId = gL>gV ? p.localId : p.visitanteId;
-    aplicarPostPartido(p);
-    if(p.localId===JUEGO.miEquipoId||p.visitanteId===JUEGO.miEquipoId) mio=p;
-  });
-  // guarda los resultados de esta ronda para mostrarlos como "otros resultados"
+  pendientes.forEach(p=>{ _resolverUnaLlave(p);
+    if(p.localId===JUEGO.miEquipoId||p.visitanteId===JUEGO.miEquipoId) mio=p; });
   JUEGO.ultimaJornada = pendientes.map(p=>({localId:p.localId, visitanteId:p.visitanteId, golesLocal:p.golesLocal, golesVisitante:p.golesVisitante}));
-  // construir siguiente ronda
-  const ganadores=JUEGO.bracket.llaves.map(l=>l.ganadorId);
-  if(ganadores.length===1){ JUEGO.fase="campeon"; }
-  else {
-    const nuevas=[];
-    for(let i=0;i<ganadores.length;i+=2)
-      nuevas.push({localId:ganadores[i], visitanteId:ganadores[i+1], ganadorId:null});
-    JUEGO.bracket={ nombre:nombreRonda(ganadores.length), llaves:nuevas, siguiente:null };
-  }
+  _avanzarBracket();
   guardarJuego(JUEGO);
   return mio;
+}
+
+// ---- Modo 2D: anima MI partido; al terminar resuelve el resto y muestra el resultado ----
+function verMiPartido2D(){
+  if(JUEGO.fase==="grupos"){
+    const mio=proximoPartidoDe(JUEGO.miEquipoId);
+    if(!mio){ avanzarFase(); return; }
+    _simularPartidoObj(mio); // el motor decide MI partido (goles + goleadores + post)
+    animarPartido2D(_equipo(mio.localId), _equipo(mio.visitanteId), mio, ()=>{
+      JUEGO.partidosGrupo.filter(p=>p.jornada===JUEGO.jornadaActual && !p.jugado).forEach(_simularPartidoObj);
+      JUEGO.ultimaJornada = JUEGO.partidosGrupo.filter(p=>p.jornada===JUEGO.jornadaActual)
+        .map(p=>({localId:p.localId, visitanteId:p.visitanteId, golesLocal:p.golesLocal, golesVisitante:p.golesVisitante}));
+      JUEGO.jornadaActual++;
+      guardarJuego(JUEGO);
+      renderResultado(mio);
+    });
+  } else {
+    const pend=_partidosRondaActual();
+    const mio=pend.find(p=>p.localId===JUEGO.miEquipoId||p.visitanteId===JUEGO.miEquipoId);
+    if(!mio){ simularRestoTorneo(); return; }
+    _resolverUnaLlave(mio);
+    animarPartido2D(_equipo(mio.localId), _equipo(mio.visitanteId), mio, ()=>{
+      pend.forEach(p=>{ if(p!==mio && !p.jugado) _resolverUnaLlave(p); });
+      JUEGO.ultimaJornada = pend.map(p=>({localId:p.localId, visitanteId:p.visitanteId, golesLocal:p.golesLocal, golesVisitante:p.golesVisitante}));
+      _avanzarBracket();
+      guardarJuego(JUEGO);
+      renderResultado(mio);
+    });
+  }
+}
+
+// Selector al jugar: resultado instantáneo (con cortinilla) o vista 2D
+function elegirModoPartido(){
+  const enGrupos = JUEGO.fase==="grupos";
+  const txt = enGrupos ? `Simulando jornada ${JUEGO.jornadaActual}…`
+    : `Simulando ${JUEGO.bracket?JUEGO.bracket.nombre:"la ronda"}…`;
+  const instant = ()=> enGrupos ? jugarJornadaDeMiPartido() : jugarEliminatoria();
+  const ov=document.createElement("div"); ov.className="modo-ov";
+  ov.innerHTML=`<div class="modo-caja">
+    <h3>¿Cómo quieres jugar el partido?</h3>
+    <div class="modo-opts">
+      <button class="btn" id="modo-2d">🎬 Ver partido 2D</button>
+      <button class="btn sec" id="modo-inst">⚡ Resultado instantáneo</button>
+    </div>
+    <button class="modo-cancel" id="modo-cancel">Cancelar</button>
+  </div>`;
+  document.body.appendChild(ov);
+  const cerrar=()=>ov.remove();
+  ov.querySelector("#modo-2d").onclick=()=>{ cerrar(); verMiPartido2D(); };
+  ov.querySelector("#modo-inst").onclick=()=>{ cerrar(); conCortina(txt, instant); };
+  ov.querySelector("#modo-cancel").onclick=cerrar;
+  ov.addEventListener("click",(e)=>{ if(e.target===ov) cerrar(); });
 }
