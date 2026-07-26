@@ -66,6 +66,7 @@ function renderDashboard(){
       </div></div>`;
     return;
   }
+  if(_modoGestion){ renderGestionEquipo(mi, llegada); return; }
   const rival=(function(){
     const p = JUEGO.fase==="grupos" ? proximoPartidoDe(mi.id)
       : _partidosRondaActual().find(x=>x.localId===mi.id||x.visitanteId===mi.id);
@@ -74,55 +75,80 @@ function renderDashboard(){
     return _equipo(rid);
   })();
   const v=document.getElementById("vista-dashboard");
-  const slots = FORMACION_SLOTS[mi.formacion];
   const enCancha = new Set(mi.titulares);
-  const banca = mi.jugadores.filter(j=>!enCancha.has(j.id));
-  const tokens = slots.map((s,i)=>{
-    const j = mi.jugadores.find(x=>x.id===mi.titulares[i]);
-    return _ficha(j, mi.id, 'slot', i, `left:${s.x}%;top:${s.y}%;`, i);
-  }).join("");
-  const bancaFichas = banca.map((j,i)=> _ficha(j, mi.id, 'banca', j.id, '', i)).join("");
-  const opciones=Object.keys(FORMACIONES).map(f=>
-    `<option ${f===mi.formacion?'selected':''}>${f}</option>`).join("");
   const enGrupos = JUEGO.fase==="grupos";
   const faseTxt = enGrupos ? `Grupos · Jornada ${JUEGO.jornadaActual}/3`
     : (JUEGO.bracket?JUEGO.bracket.nombre:JUEGO.fase);
-  v.innerHTML=`<div class="panel dt">
-    <div class="dt-cab">
-      <div><h2>${mi.nombre}</h2><p class="dt-sub">vs <b>${rival?rival.nombre:"—"}</b> · ${faseTxt}</p></div>
-      <div class="dt-ctrl">
-        <label class="dt-form">Formación
-          <select onchange="cambiarFormacion(this.value)">${opciones}</select></label>
-        <button class="btn" onclick="elegirModoPartido()">▶ Jugar mi partido</button>
-      </div>
+  const promedio=(atributo)=>rival ? Math.round(rival.jugadores.reduce((s,j)=>s+(j[atributo]||0),0)/rival.jugadores.length) : "—";
+  const energia=Math.round(mi.jugadores.filter(j=>enCancha.has(j.id))
+    .reduce((s,j)=>s+(100-j.cansancio),0)/mi.titulares.length);
+  const promedioMi=(atributo)=>Math.round(mi.jugadores.reduce((s,j)=>s+(j[atributo]||0),0)/mi.jugadores.length);
+  v.innerHTML=`<div class="dt match-hub">
+    <div class="match-topbar">
+      <div class="match-identidad"><span class="match-escudo">⚽</span><div><h2>${mi.nombre}</h2><p>${faseTxt}</p></div></div>
+      <button class="btn play-match" onclick="elegirModoPartido()">Jugar mi partido <span>▶</span></button>
     </div>
-    <div class="dt-cuerpo">
-      <div class="cancha ${llegada?'cascada':''}">${tokens}</div>
-      <div class="banca">
-        <div class="banca-tabs">
-          <button class="tab ${_tabBanca==='suplentes'?'on':''}" onclick="mostrarTab('suplentes')">Suplentes</button>
-          <button class="tab ${_tabBanca==='tacticas'?'on':''}" onclick="mostrarTab('tacticas')">Tácticas</button>
+    <div class="match-grid">
+      <section class="next-match-card">
+        <div class="card-heading"><span>Próximo partido</span><span>››</span></div>
+        <div class="next-match-body">
+          <p class="next-phase">${faseTxt}</p>
+          <p class="next-label">Rival</p>
+          <h3>${rival?rival.nombre:"Por definir"}</h3>
+          <div class="rival-stats">
+            <span>DEF: <b>${promedio("defensa")}</b></span>
+            <span>MED: <b>${promedio("pase")}</b></span>
+            <span>ATA: <b>${promedio("ataque")}</b></span>
+          </div>
+          <p class="next-note">Prepara tu once y táctica antes del silbatazo inicial.</p>
         </div>
-        ${_tabBanca==='tacticas' ?
-          _panelTacticas(mi) +
-          `<p class="dt-hint">Toca un jugador de la cancha para asignarle un rol.</p>` +
-          (function(){const s=_jugadorSel(mi);return s?_panelRol(s,mi.id):'';})()
-          :
-          `<div class="banca-grid ${llegada?'cascada':''}">${bancaFichas}</div>
-           <p class="dt-hint">Toca un jugador para ver su ficha; toca otro para intercambiarlos.</p>
-           ${(function(){const s=_jugadorSel(mi);return s?_panelJugador(s,mi.id):'';})()}`}
-        <div class="dt-links">
-          <button class="btn sec" onclick="renderGrupos()">Ver grupos</button>
-          ${JUEGO.bracket?'<button class="btn sec" onclick="renderBracket()">Ver bracket</button>':''}
+      </section>
+      <button class="team-management team-management-card" onclick="irAGestionEquipo()" aria-label="Abrir gestión de equipo">
+        <div class="card-heading"><span>Gestión de equipo</span><span>››</span></div>
+        <div class="team-management-body">
+          <i class="management-mark">⚽</i>
+          <div class="energy-bar"><span style="width:${energia}%"></span></div>
+          <p><b>${mi.formacion}</b> · Energía: ${energia}%</p>
+          <div class="rival-stats"><span>DEF: <b>${promedioMi("defensa")}</b></span>
+            <span>MED: <b>${promedioMi("pase")}</b></span><span>ATA: <b>${promedioMi("ataque")}</b></span></div>
+          <p class="team-card-hint">Toca para ajustar alineación y tácticas</p>
         </div>
-      </div>
+      </button>
     </div></div>`;
+}
+
+function irAGestionEquipo(){ _modoGestion=true; _seleccion=null; _tabBanca='suplentes'; renderDashboard(); }
+function volverAlMenuPartido(){ _modoGestion=false; _seleccion=null; renderDashboard(); }
+
+function renderGestionEquipo(mi, llegada){
+  const v=document.getElementById("vista-dashboard"), slots=FORMACION_SLOTS[mi.formacion];
+  const enCancha=new Set(mi.titulares), banca=mi.jugadores.filter(j=>!enCancha.has(j.id));
+  const tokens=slots.map((s,i)=>{ const j=mi.jugadores.find(x=>x.id===mi.titulares[i]);
+    return _ficha(j,mi.id,'slot',i,`left:${s.x}%;top:${s.y}%;`,i); }).join("");
+  const bancaFichas=banca.map((j,i)=>_ficha(j,mi.id,'banca',j.id,'',i)).join("");
+  const opciones=Object.keys(FORMACIONES).map(f=>`<option ${f===mi.formacion?'selected':''}>${f}</option>`).join("");
+  v.innerHTML=`<div class="panel dt gestion-equipo">
+    <div class="dt-cab"><div><button class="btn sec back-menu" onclick="volverAlMenuPartido()">← Volver al menú</button>
+      <h2>Gestión de equipo</h2><p class="dt-sub">Alineación, suplentes y tácticas de ${mi.nombre}</p></div>
+      <div class="dt-ctrl"><label class="dt-form">Formación <select onchange="cambiarFormacion(this.value)">${opciones}</select></label>
+        <button class="btn" onclick="elegirModoPartido()">▶ Jugar mi partido</button></div></div>
+    <div class="dt-cuerpo"><div class="cancha ${llegada?'cascada':''}">${tokens}</div><div class="banca">
+      <div class="banca-tabs"><button class="tab ${_tabBanca==='suplentes'?'on':''}" onclick="mostrarTab('suplentes')">Suplentes</button>
+        <button class="tab ${_tabBanca==='tacticas'?'on':''}" onclick="mostrarTab('tacticas')">Tácticas</button></div>
+      ${_tabBanca==='tacticas' ? _panelTacticas(mi)+`<p class="dt-hint">Toca un jugador de la cancha para asignarle un rol.</p>`+
+        (function(){const s=_jugadorSel(mi);return s?_panelRol(s,mi.id):'';})() :
+        `<div class="banca-grid ${llegada?'cascada':''}">${bancaFichas}</div><p class="dt-hint">Toca un jugador para ver su ficha; toca otro para intercambiarlos.</p>`+
+        (function(){const s=_jugadorSel(mi);return s?_panelJugador(s,mi.id):'';})()}
+      <div class="dt-links"><button class="btn sec" onclick="renderGrupos()">Ver grupos</button>
+        ${JUEGO.bracket?'<button class="btn sec" onclick="renderBracket()">Ver bracket</button>':''}</div>
+    </div></div></div>`;
 }
 
 // Selección transitoria para intercambiar jugadores: {tipo:'slot'|'banca', ref:índice|idJugador}
 let _seleccion=null;
 // Pestaña activa del panel derecho del dashboard: 'suplentes' | 'tacticas'
 let _tabBanca='suplentes';
+let _modoGestion=false;
 
 function mostrarTab(t){ _tabBanca=t; _seleccion=null; renderDashboard(); }
 

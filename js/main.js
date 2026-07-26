@@ -81,7 +81,7 @@ window.addEventListener("DOMContentLoaded", arrancar);
 
 // ---- Tarea 11: flujo de juego (dashboard, partido, eliminatorias) ----
 
-function irADashboard(){ _seleccion=null; _tabBanca='suplentes'; renderDashboard(); }
+function irADashboard(){ _modoGestion=false; _seleccion=null; _tabBanca='suplentes'; renderDashboard(); }
 
 function partidosDeFase(){
   return JUEGO.fase==="grupos" ? JUEGO.partidosGrupo : _partidosRondaActual();
