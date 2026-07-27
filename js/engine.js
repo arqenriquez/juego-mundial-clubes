@@ -14,9 +14,11 @@ function _ratingJugador(j){
   // guardas por si faltan atributos (partidas viejas o equipos de prueba)
   const pase   = j.pase   == null ? j.ataque  : j.pase;
   const fisico = j.fisico == null ? 60        : j.fisico;
-  let off = j.ataque*0.5 + pase*0.2 + j.velocidad*0.3;
+  const regate = j.regate == null ? j.ataque : j.regate;
+  const colocacion = j.colocacion == null ? j.ataque : j.colocacion;
+  let off = j.ataque*.35 + pase*.18 + j.velocidad*.22 + regate*.15 + colocacion*.10;
   let def;
-  if(j.posicion==="POR"){
+  if(grupoPosicion(j.posicion)==="POR"){
     const portero = j.portero == null ? j.defensa : j.portero;
     def = portero*0.75 + j.defensa*0.25;   // el portero define la solidez del arco
   } else {
@@ -43,7 +45,7 @@ function evaluarAlineacion(equipo){
     .filter(Boolean);
   let ataque=0, defensa=0;
   titulares.forEach(j=>{
-    const r=_ratingJugador(j), p=_PESOS[j.posicion];
+    const r=_ratingJugador(j), p=_PESOS[grupoPosicion(j.posicion)];
     ataque += r.off*p.off;
     defensa += r.def*p.def;
   });
@@ -90,7 +92,7 @@ function simularPartido(equipoLocal, equipoVisitante, rng){
 function _repartirGoles(equipo, goles, out, rng){
   const atacantes = equipo.titulares
     .map(id=>equipo.jugadores.find(j=>j.id===id)).filter(Boolean)
-    .filter(j=>j.posicion==="DEL"||j.posicion==="MED");
+    .filter(j=>grupoPosicion(j.posicion)==="DEL"||grupoPosicion(j.posicion)==="MED");
   for(let g=0; g<goles; g++){
     const autor = atacantes.length
       ? atacantes[Math.floor(rng()*atacantes.length)]

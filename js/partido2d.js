@@ -49,11 +49,11 @@ function nuevaSim2D(local, visitante, goleadores, dur){
     const eq=eqDe(S.pose), s=sDe(S.pose);
     if(Math.random()<0.14){ // pérdida
       S.pose = S.pose==="L"?"R":"L";
-      const eq2=eqDe(S.pose).filter(p=>p.pos!=="POR");
+      const eq2=eqDe(S.pose).filter(p=>grupoPosicion(p.pos)!=="POR");
       S.carrier = _p2dNearest({cx:S.ballX,cy:S.ballY}, eq2) || eqDe(S.pose)[5];
       return;
     }
-    const comp=eq.filter(p=>p!==S.carrier && p.pos!=="POR");
+    const comp=eq.filter(p=>p!==S.carrier && grupoPosicion(p.pos)!=="POR");
     let mejor=null, punt=-1e9;
     comp.forEach(p=>{
       const adelante=(p.cx-S.carrier.cx)*s, dist=Math.hypot(p.cx-S.carrier.cx,p.cy-S.carrier.cy);
@@ -100,10 +100,10 @@ function nuevaSim2D(local, visitante, goleadores, dur){
     const tt=S.t/1000;
     [["L",S.L,S.offL],["R",S.R,S.offR]].forEach(([t,eq,off])=>{
       const s=sDe(t), enPosesion=(S.pose===t);
-      const atacRival=rivalDe(t).filter(p=>p.pos==="DEL"||p.pos==="MED");
-      const defRival =rivalDe(t).filter(p=>p.pos!=="POR");
+      const atacRival=rivalDe(t).filter(p=>["DEL","MED"].includes(grupoPosicion(p.pos)));
+      const defRival =rivalDe(t).filter(p=>grupoPosicion(p.pos)!=="POR");
       eq.forEach(d=>{
-        if(d.pos==="POR"){
+        if(grupoPosicion(d.pos)==="POR"){
           const gx=t==="L"?4:96;
           d.cx += (gx-d.cx)*0.06;
           d.cy += (Math.max(34,Math.min(66,S.ballY))-d.cy)*0.05;
@@ -112,9 +112,9 @@ function nuevaSim2D(local, visitante, goleadores, dur){
         let tx=d.bx + s*off, ty=d.by;
         tx += Math.sin(tt*0.8+d.n)*1.2; ty += Math.cos(tt*0.7+d.n)*1.6;
         if(d===S.carrier){ tx += s*6; ty += (S.ballY-d.cy)*0.3; }
-        else if(enPosesion && (d.pos==="DEL"||d.pos==="MED")){
+        else if(enPosesion && ["DEL","MED"].includes(grupoPosicion(d.pos))){
           const m=_p2dNearest(d, defRival); if(m) ty += (d.cy>m.cy?4:-4); tx += s*3;
-        } else if(!enPosesion && (d.pos==="DEF"||d.pos==="MED")){
+        } else if(!enPosesion && ["DEF","MED"].includes(grupoPosicion(d.pos))){
           const a=_p2dNearest(d, atacRival); if(a){ tx += (a.cx-tx)*0.25; ty += (a.cy-ty)*0.25; }
         }
         tx=Math.max(3,Math.min(97,tx)); ty=Math.max(6,Math.min(94,ty));

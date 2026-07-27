@@ -18,7 +18,7 @@ function _ritmoCrecimiento(edad){
   return 5;
 }
 
-const _ATRIBUTOS = ["ataque","defensa","velocidad","pase","fisico"];
+const _ATRIBUTOS = ["ataque","defensa","velocidad","pase","fisico","regate","colocacion"];
 
 function aplicarProgresion(jugador, jugo, rng){
   const res={subio:null, bajo:null};
@@ -27,6 +27,8 @@ function aplicarProgresion(jugador, jugo, rng){
     if(jugador.experiencia >= 100){
       jugador.experiencia -= 100;
       const attr=_ATRIBUTOS[Math.floor(rng()*_ATRIBUTOS.length)];
+      // Compatibilidad con jugadores creados antes de regate/colocación.
+      if(jugador[attr]==null) jugador[attr]=jugador.ataque;
       if(jugador[attr]<95){ jugador[attr]+=1; res.subio=attr; }
     }
     // declive: veteranos 33+ con baja probabilidad pierden velocidad

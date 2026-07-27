@@ -8,15 +8,19 @@ suite("data.js", ()=>{
   assertEq("4-4-2 defensas", FORMACIONES["4-4-2"].DEF, 4);
   assertEq("4-3-3 delanteros", FORMACIONES["4-3-3"].DEL, 3);
   assertEq("3-5-2 medios", FORMACIONES["3-5-2"].MED, 5);
+  assertEq("hay 10 formaciones", Object.keys(FORMACIONES).length, 10);
+  assert("cada formación tiene 11 slots", Object.values(FORMACION_SLOTS).every(s=>s.length===11));
 });
 
 suite("models.js", ()=>{
   const j = crearJugador({id:"x", nombre:"A B", posicion:"DEL", edad:20,
-    ataque:80, defensa:50, velocidad:75, pase:70, fisico:60, portero:45,
+    ataque:80, defensa:50, velocidad:75, regate:78, colocacion:74, pase:70, fisico:60, portero:45,
     estatura:180, pieDominante:"Derecho"});
   assertEq("jugador cansancio inicial", j.cansancio, 0);
   assertEq("jugador forma inicial", j.forma, 0);
   assertEq("jugador conserva pase", j.pase, 70);
+  assertEq("jugador conserva regate", j.regate, 78);
+  assertEq("jugador conserva colocación", j.colocacion, 74);
   assertEq("jugador conserva estatura", j.estatura, 180);
   const e = crearEquipo({id:"t1", ciudad:"Roma", nivel:3});
   assertEq("nombre equipo", e.nombre, "Club Roma");
@@ -39,10 +43,13 @@ suite("generator.js", ()=>{
   assert("atributos en rango", at>=40 && at<=95);
   // nuevos atributos presentes y coherentes
   const j0=e.jugadores[0];
-  assert("tiene pase, fisico, portero", j0.pase>=40 && j0.fisico>=40 && j0.portero>=35);
+  assert("tiene pase, físico, portero, regate y colocación", j0.pase>=40 && j0.fisico>=40 && j0.portero>=35 && j0.regate>=40 && j0.colocacion>=40);
   assert("estatura y pie definidos", j0.estatura>=163 && (j0.pieDominante==="Derecho"||j0.pieDominante==="Izquierdo"));
-  const por=e.jugadores.find(j=>j.posicion==="POR"), campo=e.jugadores.find(j=>j.posicion==="DEL");
-  assert("portero del POR alto y del DEL bajo", por.portero>campo.portero);
+  const por=e.jugadores.find(j=>j.posicion==="POR"), campo=e.jugadores.find(j=>j.posicion==="DC");
+  assert("portero del POR alto y del DC bajo", por.portero>campo.portero);
+  assert("plantilla incluye laterales, medios y extremos", ["LI","LD","MCD","MCO","EI","ED"].every(p=>e.jugadores.some(j=>j.posicion===p)));
+  assert("cada jugador define posiciones jugables", e.jugadores.every(j=>j.posiciones.includes(j.posicion)));
+  assert("hay jugadores polivalentes", e.jugadores.some(j=>j.posiciones.length>1));
   // equipos de mayor nivel tienen mejor media
   const media = t=> t.jugadores.reduce((s,j)=>s+(j.ataque+j.defensa+j.velocidad)/3,0)/t.jugadores.length;
   const fuerte = liga.find(t=>t.nivel===5), debil = liga.find(t=>t.nivel===1);
@@ -80,7 +87,7 @@ suite("mechanics.js", ()=>{
   assertEq("experiencia conserva sobrante", jExp.experiencia, 15);
   // tope de atributo en 95: no sube y subio es null
   let jTope=base(); jTope.edad=20; jTope.experiencia=95; jTope.fisico=95;
-  let rTope=aplicarProgresion(jTope,true,()=>0.99); // rng elige indice 4 = "fisico"
+  let rTope=aplicarProgresion(jTope,true,()=>0.7); // rng elige índice 4 = "fisico"
   assertEq("atributo topado en 95 no sube", jTope.fisico, 95);
   assert("subio es null si el atributo ya esta topado", rTope.subio===null);
   // declive del veterano: 33+ puede perder velocidad (piso 40)
@@ -179,6 +186,37 @@ suite("tournament.js", ()=>{
   assertEq("bracket cubre 16 clasificados sin repetir", new Set(slots).size, 16);
 });
 
+suite("transfers.js", ()=>{
+  const liga=generarLiga(()=>0.5), mi=liga[0], origen=liga[1];
+  mi.presupuesto=999;
+  const candidato=origen.jugadores.find(j=>j.posicion==="DC");
+  const valor=valorMercado(candidato);
+  assert("valor de mercado positivo", valor>0);
+  const filtrados=jugadoresEnMercado(liga,mi.id,{posicion:"DC",edad:"TODAS",valor:"TODOS"});
+  assert("filtro de posición solo devuelve DC compatibles", filtrados.every(x=>x.jugador.posiciones.includes("DC")));
+  const antesMi=mi.jugadores.length, antesOrigen=origen.jugadores.length, antesPresupuesto=mi.presupuesto;
+  const r=ficharDelMercado(mi,origen,candidato.id);
+  assert("fichaje exitoso con presupuesto", r.ok);
+  assertEq("jugador llega a mi plantilla", mi.jugadores.length, antesMi+1);
+  assertEq("jugador sale del club origen", origen.jugadores.length, antesOrigen-1);
+  assertEq("presupuesto se descuenta", mi.presupuesto, antesPresupuesto-valor);
+  assertEq("llegada queda registrada", mi.fichajes.length, 1);
+  const ligaVenta=generarLiga(()=>0.5), vendedor=ligaVenta[0], comprador=ligaVenta[1];
+  ligaVenta.forEach(e=>e.presupuesto=999);
+  const aVender=vendedor.jugadores.find(j=>j.posicion==="DC");
+  vendedor.transferibles=[aVender.id];
+  const renovadas=actualizarOfertasVenta(vendedor,ligaVenta,()=>0);
+  assert("ofertas se actualizan tras un partido", renovadas.length>0);
+  assert("las ofertas guardan club y monto", renovadas.every(o=>o.equipoId && o.monto>0));
+  const ofertas=generarOfertasVenta(aVender,ligaVenta,vendedor.id,()=>0.4);
+  assertEq("se generan tres ofertas de clubes distintos", new Set(ofertas.map(o=>o.equipoId)).size, 3);
+  const antesVenta=vendedor.jugadores.length, antesFondos=vendedor.presupuesto;
+  const venta=resolverVenta(vendedor,comprador,aVender.id,ofertas[0],()=>0);
+  assert("venta exitosa con probabilidad favorable", venta.ok);
+  assertEq("venta saca jugador de la plantilla", vendedor.jugadores.length, antesVenta-1);
+  assertEq("venta suma al presupuesto", vendedor.presupuesto, antesFondos+ofertas[0].monto);
+});
+
 suite("avatar.js", ()=>{
   // determinismo: la cara depende solo de la semilla, no del momento en que se pide
   assertEq("misma semilla → misma cara", caraSVG("t19-p5"), caraSVG("t19-p5"));
@@ -204,7 +242,7 @@ suite("avatar.js", ()=>{
   const eq=generarLiga(()=>0.5)[19];
   const coincide=eq.jugadores.every(j=>{
     const pos=rutaCaraRanura(j.id).split("/").pop().split("-")[0];
-    return pos===j.posicion.toLowerCase();
+    return pos===grupoPosicion(j.posicion).toLowerCase();
   });
   assert("ranura coincide con la posición real de los 18 jugadores", coincide);
 });

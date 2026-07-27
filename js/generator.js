@@ -18,23 +18,32 @@ function _sube(v, n){ return Math.min(95, v+n); }
 
 // Sesga los atributos según la posición para que tengan sentido
 function _generarJugador(id, posicion, nivel, rng){
-  let at=_atributoBase(nivel,rng), df=_atributoBase(nivel,rng),
-      ve=_atributoBase(nivel,rng), fi=_atributoBase(nivel,rng), pa=_atributoBase(nivel,rng);
+  const grupo=grupoPosicion(posicion);
+  let at=_atributoBase(nivel,rng), df=_atributoBase(nivel,rng), ve=_atributoBase(nivel,rng),
+      fi=_atributoBase(nivel,rng), pa=_atributoBase(nivel,rng), re=_atributoBase(nivel,rng), co=_atributoBase(nivel,rng);
   // portero: alto solo en POR; bajo en el resto (no son porteros)
   let po = posicion==="POR" ? _sube(_atributoBase(nivel,rng),6) : _rint(rng,35,55);
-  if(posicion==="DEL"){ at=_sube(at,8); }
-  if(posicion==="DEF"){ df=_sube(df,8); fi=_sube(fi,4); }
+  if(grupo==="DEL"){ at=_sube(at,8); re=_sube(re,7); co=_sube(co,6); }
+  if(grupo==="DEF"){ df=_sube(df,8); fi=_sube(fi,4); }
   if(posicion==="POR"){ df=_sube(df,8); pa=Math.max(40,pa-10); at=Math.max(40,at-12); }
-  if(posicion==="MED"){ pa=_sube(pa,8); ve=_sube(ve,4); }
+  if(grupo==="MED"){ pa=_sube(pa,8); ve=_sube(ve,4); }
+  if(posicion==="MCO"){ re=_sube(re,7); co=_sube(co,5); }
   // estatura: porteros y defensas más altos
   let est = 170 + _rint(rng,-6,16);
-  if(posicion==="POR"||posicion==="DEF") est += 5;
+  if(posicion==="POR"||grupo==="DEF") est += 5;
   est = Math.max(163, Math.min(200, est));
   const pie = _rint(rng,0,3)===0 ? "Izquierdo" : "Derecho"; // ~25% zurdos
+  const alternativas={LI:["LD","EI"],LD:["LI","ED"],DFC:["MCD"],MCD:["MC","DFC"],
+    MC:["MCD","MCO"],MCO:["MC","EI","ED"],EI:["ED","MCO","DC"],ED:["EI","MCO","DC"],DC:["EI","ED"],POR:[]};
+  // Aproximadamente un tercio de la plantilla es polivalente; la ranura asegura que siempre
+  // haya alternativas aun con una semilla determinista usada en pruebas.
+  const indice=Number((id.match(/-p(\d+)$/)||[])[1]);
+  const esPolivalente=posicion!=="POR" && (indice%3===0 || rng()<0.25);
+  const extras=esPolivalente ? (alternativas[posicion]||[]).slice(0, rng()<0.3?2:1) : [];
   return crearJugador({id, nombre:_nombreAleatorio(rng), posicion,
-    edad:_edadAleatoria(rng), ataque:at, defensa:df, velocidad:ve,
+    edad:_edadAleatoria(rng), ataque:at, defensa:df, velocidad:ve, regate:re, colocacion:co,
     pase:pa, fisico:fi, portero:po, estatura:est, pieDominante:pie,
-    rol:ROL_DEFAULT[posicion]});
+    rol:ROL_DEFAULT[posicion], posiciones:[posicion,...extras]});
 }
 
 function generarLiga(rng){
@@ -44,7 +53,7 @@ function generarLiga(rng){
   for(let k=0;k<2;k++) patron.forEach(n=>niveles.push(n));
   for(let i=0;i<32;i++){
     const eq = crearEquipo({id:"t"+i, ciudad:CIUDADES[i], nivel:niveles[i]});
-    const plan=[["POR",2],["DEF",6],["MED",6],["DEL",4]];
+    const plan=[["POR",2],["LI",1],["DFC",4],["LD",1],["MCD",2],["MC",3],["MCO",1],["EI",1],["ED",1],["DC",2]];
     let p=0;
     plan.forEach(([pos,cant])=>{
       for(let c=0;c<cant;c++){

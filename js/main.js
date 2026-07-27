@@ -1,5 +1,5 @@
 const JUEGO = { equipos:[], miEquipoId:null, grupos:[], partidosGrupo:[],
-  bracket:null, fase:"inicio", jornadaActual:1, ultimaJornada:[], rng: Math.random };
+  bracket:null, fase:"inicio", jornadaActual:1, ultimaJornada:[], ventasCiclo:0, rng: Math.random };
 
 let _vistaActual = null;
 
@@ -38,9 +38,31 @@ function nuevoJuego(miEquipoId){
   JUEGO.partidosGrupo = JUEGO.grupos.flatMap(g=>fixturesDeGrupo(g));
   JUEGO.jornadaActual = 1;
   JUEGO.ultimaJornada = [];
+  JUEGO.ventasCiclo = 0;
   JUEGO.fase="grupos";
   guardarJuego(JUEGO);
   irADashboard();
+}
+
+// Las partidas anteriores usaban DEF/MED/DEL. Conservamos sus jugadores, pero al cargarles
+// asignamos posiciones específicas según la ranura estable de la plantilla.
+function migrarPosicionesPlantilla(equipo){
+  const plan=["POR","POR","LI","DFC","DFC","DFC","DFC","LD","MCD","MCD","MC","MC","MC","MCO","EI","ED","DC","DC"];
+  equipo.jugadores.forEach((j,i)=>{
+    if(!j.posiciones || !j.posiciones.length || ["DEF","MED","DEL"].includes(j.posicion)){
+      const posicion=plan[i] || j.posicion;
+      j.posicion=posicion;
+      j.posiciones=[posicion];
+    }
+    if(j.regate==null) j.regate=j.ataque;
+    if(j.colocacion==null) j.colocacion=j.ataque;
+  });
+  if(equipo.presupuesto==null) equipo.presupuesto=60+equipo.nivel*25;
+  if(!Array.isArray(equipo.fichajes)) equipo.fichajes=[];
+  if(!Array.isArray(equipo.ventas)) equipo.ventas=[];
+  if(!equipo.ventasBloqueadas) equipo.ventasBloqueadas={};
+  if(!Array.isArray(equipo.transferibles)) equipo.transferibles=[];
+  if(!Array.isArray(equipo.ofertasVenta)) equipo.ofertasVenta=[];
 }
 
 // Arma titulares ordenados por SLOT de la formación (índice = slot en la cancha).
@@ -50,7 +72,9 @@ function autoAlinear(equipo){
   const usados = new Set();
   const rating = j => j.ataque + j.defensa + j.velocidad;
   equipo.titulares = slots.map(s=>{
-    let cand = equipo.jugadores.filter(j=>!usados.has(j.id) && j.posicion===s.pos)
+    let cand = equipo.jugadores.filter(j=>!usados.has(j.id) && puedeJugarEn(j,s.pos))
+      .sort((a,b)=>rating(b)-rating(a));
+    if(!cand.length) cand = equipo.jugadores.filter(j=>!usados.has(j.id) && grupoPosicion(j.posicion)===grupoPosicion(s.pos))
       .sort((a,b)=>rating(b)-rating(a));
     if(!cand.length) cand = equipo.jugadores.filter(j=>!usados.has(j.id))
       .sort((a,b)=>rating(b)-rating(a));
@@ -64,6 +88,8 @@ function arrancar(){
     if(confirm("Hay una partida guardada. ¿Continuar?")){
       Object.assign(JUEGO, cargarJuego());
       JUEGO.rng = Math.random; // no se serializa la función
+      JUEGO.equipos.forEach(migrarPosicionesPlantilla);
+      if(JUEGO.ventasCiclo==null) JUEGO.ventasCiclo=0;
       enrutarPorFase();
       return;
     } else { borrarGuardado(); }
@@ -81,7 +107,7 @@ window.addEventListener("DOMContentLoaded", arrancar);
 
 // ---- Tarea 11: flujo de juego (dashboard, partido, eliminatorias) ----
 
-function irADashboard(){ _modoGestion=false; _seleccion=null; _tabBanca='suplentes'; renderDashboard(); }
+function irADashboard(){ _modoGestion=false; _modoFichajes=false; _modoPlantilla=false; _seleccion=null; _tabBanca='suplentes'; renderDashboard(); }
 
 function partidosDeFase(){
   return JUEGO.fase==="grupos" ? JUEGO.partidosGrupo : _partidosRondaActual();
@@ -140,6 +166,8 @@ function _simularPartidoObj(p){
 }
 
 function aplicarPostPartido(p){
+  const esMiPartido=p.localId===JUEGO.miEquipoId || p.visitanteId===JUEGO.miEquipoId;
+  if(esMiPartido) JUEGO.ventasCiclo++;
   [p.localId, p.visitanteId].forEach(eid=>{
     const eq=_equipo(eid);
     const gf = eid===p.localId ? p.golesLocal : p.golesVisitante;
@@ -151,6 +179,7 @@ function aplicarPostPartido(p){
       if(jugo){ actualizarForma(j,res); aplicarProgresion(j,true,JUEGO.rng); }
     });
   });
+  if(esMiPartido) actualizarOfertasVenta(_equipo(JUEGO.miEquipoId),JUEGO.equipos,JUEGO.rng);
 }
 
 function avanzarFase(){
