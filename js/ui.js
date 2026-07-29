@@ -90,11 +90,11 @@ function renderDashboard(){
   v.innerHTML=`<div class="dt match-hub ${_animarSeccion?'screen-enter':''}">
     <div class="match-topbar">
       <div class="match-identidad"><span class="match-escudo">⚽</span><div><h2>${mi.nombre}</h2><p>${faseTxt}</p></div></div>
-      <div class="match-actions"><button class="btn sec squad-shortcut" onclick="abrirPlantilla()">Plantilla</button>
+      <div class="match-actions"><button class="btn sec transfer-shortcut" onclick="renderGrupos()">Ver grupos</button>
         <button class="btn play-match" onclick="elegirModoPartido()">Jugar mi partido <span>▶</span></button></div>
     </div>
     <div class="match-grid">
-      <section class="next-match-card">
+      <div class="next-column"><section class="next-match-card">
         <div class="card-heading"><span>Próximo partido</span><span>››</span></div>
         <div class="next-match-body">
           <p class="next-phase">${faseTxt}</p>
@@ -109,6 +109,7 @@ function renderDashboard(){
           <p class="next-note">Prepara tu once y táctica antes del silbatazo inicial.</p>
         </div>
       </section>
+      <button class="transfer-card squad-dashboard-card" onclick="abrirPlantilla()"><span class="card-heading"><b>Plantilla</b><i>››</i></span><strong>Jugadores <em>♟</em></strong><small>${mi.jugadores.length} jugadores disponibles</small></button></div>
       <div class="team-column">
         <button class="team-management team-management-card" onclick="irAGestionEquipo()" aria-label="Abrir gestión de equipo">
           <div class="card-heading"><span>Gestión de equipo</span><span>››</span></div>
@@ -232,7 +233,7 @@ function renderPlantilla(mi){
   const elegido=mi.jugadores.find(j=>j.id===_jugadorPlantillaId);
   const transferible=elegido && mi.transferibles.includes(elegido.id);
   const reporte=elegido ? `<article class="squad-report"><div class="report-title">Reporte de jugador <button onclick="seleccionarJugadorPlantilla(null)" aria-label="Cerrar reporte">×</button></div>
-    <div class="report-body"><div class="report-avatar">${avatarHTML(elegido,mi.id,104)}</div><div class="report-main"><h3>${elegido.nombre}</h3><p>${mi.nombre} · ${(elegido.posiciones||[elegido.posicion]).join(" / ")}</p>
+    <div class="report-body"><div class="report-avatar">${avatarHTML(elegido,mi.id,104)}</div><div class="report-main"><h3>${elegido.nombre}</h3><p>${mi.nombre} · ${elegido.nacionalidad||"Internacional"} · ${(elegido.posiciones||[elegido.posicion]).join(" / ")}</p>
       <div class="report-datos"><span><b>GRL</b>${_ovr(elegido)}</span><span><b>POS</b>${elegido.posicion}</span><span><b>EDAD</b>${elegido.edad}</span><span><b>VALOR</b>$${valorMercado(elegido)}M</span><span><b>POT</b>${_potencialJugador(elegido)}</span></div></div>
       ${_radarPlantilla(elegido)}</div><div class="report-actions"><button class="btn ${transferible?'sec':''}" onclick="alternarTransferible('${elegido.id}')">${transferible?'Quitar de transferibles':'Añadir a transferibles'}</button><span>${transferible?'Este jugador tendrá más opciones de recibir ofertas tras el próximo partido.':'Márcalo para aumentar las ofertas que recibe.'}</span></div></article>` : "";
   v.innerHTML=`<div class="panel squad-screen ${_animarSeccion?'screen-enter':''}"><div class="transfer-head"><div><button class="btn sec back-menu" onclick="volverDePlantilla()">← Volver al menú</button>
@@ -253,6 +254,8 @@ function renderGestionEquipo(mi, llegada){
     <div class="dt-cab"><div><button class="btn sec back-menu" onclick="volverAlMenuPartido()">← Volver al menú</button>
       <h2>Gestión de equipo</h2><p class="dt-sub">Alineación, suplentes y tácticas de ${mi.nombre}</p></div>
       <div class="dt-ctrl"><label class="dt-form">Formación <select onchange="cambiarFormacion(this.value)">${opciones}</select></label>
+        <div class="dt-auto"><button class="btn sec" onclick="alinearMejorEquipo()">Mejor equipo</button>
+          <button class="btn sec" onclick="alinearMasEnergia()">Más energía</button></div>
         <button class="btn" onclick="elegirModoPartido()">▶ Jugar mi partido</button></div></div>
     <div class="dt-cuerpo"><div class="cancha ${llegada?'cascada':''}">${tokens}</div><div class="banca">
       <div class="banca-tabs"><button class="tab ${_tabBanca==='suplentes'?'on':''}" onclick="mostrarTab('suplentes')">Suplentes</button>
@@ -261,8 +264,7 @@ function renderGestionEquipo(mi, llegada){
         (function(){const s=_jugadorSel(mi);return s?_panelRol(s,mi.id):'';})() :
         `<div class="banca-grid ${llegada?'cascada':''}">${bancaFichas}</div><p class="dt-hint">Toca un jugador para ver su ficha; toca otro para intercambiarlos.</p>`+
         (function(){const s=_jugadorSel(mi);return s?_panelJugador(s,mi.id):'';})()}</div>
-      <div class="dt-links"><button class="btn sec" onclick="renderGrupos()">Ver grupos</button>
-        ${JUEGO.bracket?'<button class="btn sec" onclick="renderBracket()">Ver bracket</button>':''}</div>
+      <div class="dt-links">${JUEGO.bracket?'<button class="btn sec" onclick="renderBracket()">Ver bracket</button>':''}</div>
     </div></div></div>`;
   _reproducirMovimientoXI();
   _animarSeccion=false; _animarPanel=false;
@@ -379,9 +381,11 @@ function _ficha(j, equipoId, tipo, ref, estilo, i, posicionCancha){
   const en = Math.max(0, 100 - j.cansancio); // energía = 100 - cansancio
   const col = en>=60 ? 'var(--acento)' : en>=30 ? 'var(--amarillo)' : 'var(--alerta)';
   const refArg = tipo==='slot' ? ref : `'${ref}'`;
+  const fueraDePosicion = posicionCancha && !puedeJugarEn(j,posicionCancha);
   return `<button class="ficha pos-${grupoPosicion(j.posicion).toLowerCase()} ${sel?'sel':''}" data-jugador-id="${j.id}" `+
     `style="${estilo||''}${i!=null?`--i:${i};`:''}" onclick="seleccionar('${tipo}',${refArg})">`+
     `${posicionCancha?`<span class="ficha-posicion">${posicionCancha}</span>`:''}`+
+    `${fueraDePosicion?`<span class="ficha-fuera-posicion" title="Fuera de posición" aria-label="Fuera de posición">!</span>`:''}`+
     `<span class="ficha-cara">${avatarHTML(j, equipoId, 46)}<b class="ficha-ovr">${_ovr(j)}</b></span>`+
     `<span class="ficha-nom">${_apellido(j.nombre)}</span>`+
     `<span class="ficha-stam"><i style="width:${en}%;background:${col}"></i></span>`+
@@ -462,6 +466,7 @@ function _panelJugador(j, equipoId){
     <div class="ji-cols">
       <div class="ji-col">
         <div class="ji-dato"><span>Nombre</span><b>${j.nombre}</b></div>
+        <div class="ji-dato"><span>Nacionalidad</span><b>${j.nacionalidad||"Internacional"}</b></div>
         <div class="ji-dato"><span>Posiciones</span><b>${(j.posiciones||[j.posicion]).join(" · ")}</b></div>
         <div class="ji-dato"><span>Edad</span><b>${j.edad}</b></div>
         <div class="ji-dato"><span>Estatura</span><b>${j.estatura} cm</b></div>
@@ -494,6 +499,34 @@ function _intercambiar(mi, a, b){
 }
 
 function cambiarFormacion(f){ const mi=_equipo(JUEGO.miEquipoId); _capturarMovimientoXI(); mi.formacion=f; autoAlinear(mi); _seleccion=null; renderDashboard(); }
+function _alinearPorCriterio(mi, criterio){
+  const slots=FORMACION_SLOTS[mi.formacion];
+  const puntaje=j=>criterio==="energia" ? 100-j.cansancio : _ovr(j);
+  const opciones=slots.map((slot,indice)=>({indice,candidatos:mi.jugadores
+    .filter(j=>puedeJugarEn(j,slot.pos))
+    .sort((a,b)=>puntaje(b)-puntaje(a)||_ovr(b)-_ovr(a))}))
+    .sort((a,b)=>a.candidatos.length-b.candidatos.length);
+  const resultado=Array(slots.length), usados=new Set();
+  const asignar=paso=>{
+    if(paso===opciones.length) return true;
+    const opcion=opciones[paso];
+    for(const jugador of opcion.candidatos){
+      if(usados.has(jugador.id)) continue;
+      usados.add(jugador.id); resultado[opcion.indice]=jugador.id;
+      if(asignar(paso+1)) return true;
+      usados.delete(jugador.id);
+    }
+    return false;
+  };
+  if(!asignar(0)){
+    alert("No hay suficientes jugadores compatibles para cubrir todas las posiciones de esta formación.");
+    return;
+  }
+  _capturarMovimientoXI();
+  mi.titulares=resultado; _seleccion=null; guardarJuego(JUEGO); renderDashboard();
+}
+function alinearMejorEquipo(){ _alinearPorCriterio(_equipo(JUEGO.miEquipoId),"grl"); }
+function alinearMasEnergia(){ _alinearPorCriterio(_equipo(JUEGO.miEquipoId),"energia"); }
 function jugarEliminatoria(){
   const mio=_resolverLlaveMia();
   if(mio) renderResultado(mio);

@@ -43,6 +43,7 @@ function _generarJugador(id, posicion, nivel, rng){
   return crearJugador({id, nombre:_nombreAleatorio(rng), posicion,
     edad:_edadAleatoria(rng), ataque:at, defensa:df, velocidad:ve, regate:re, colocacion:co,
     pase:pa, fisico:fi, portero:po, estatura:est, pieDominante:pie,
+    nacionalidad:NACIONALIDADES[_rint(rng,0,NACIONALIDADES.length-1)],
     rol:ROL_DEFAULT[posicion], posiciones:[posicion,...extras]});
 }
 

@@ -10,6 +10,8 @@ const NOMBRES = ["Luis","Marco","Diego","Iván","Andrés","Pablo","Hugo","Kenji"
 const APELLIDOS = ["Fabri","Montes","Vega","Ríos","Salas","Duarte","Okafor","Tanaka","Rossi","Kane",
   "Bauer","Silva","Costa","Mensah","Ivanov","Cruz","Navarro","Blanco","Aziz","Park",
   "Herrera","Lima","Adeyemi","Sato","Mora"];
+const NACIONALIDADES = ["Argentina","Brasil","México","España","Inglaterra","Italia","Alemania","Francia",
+  "Portugal","Uruguay","Colombia","Japón","Corea del Sur","Nigeria","Marruecos","Turquía"];
 const FORMACIONES = {
   "4-4-2": { DEF:4, MED:4, DEL:2 },
   "4-3-3": { DEF:4, MED:3, DEL:3 },

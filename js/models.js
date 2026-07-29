@@ -4,7 +4,7 @@ function crearJugador(o){
     ataque:o.ataque, defensa:o.defensa, velocidad:o.velocidad, regate:o.regate, colocacion:o.colocacion,
     pase:o.pase, fisico:o.fisico, portero:o.portero,
     // datos de ficha
-    estatura:o.estatura, pieDominante:o.pieDominante,
+    estatura:o.estatura, pieDominante:o.pieDominante, nacionalidad:o.nacionalidad||"Internacional",
     rol:o.rol||null,
     cansancio:0, forma:0, experiencia:0 };
 }

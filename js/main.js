@@ -56,6 +56,10 @@ function migrarPosicionesPlantilla(equipo){
     }
     if(j.regate==null) j.regate=j.ataque;
     if(j.colocacion==null) j.colocacion=j.ataque;
+    if(!j.nacionalidad){
+      const suma=String(j.id||i).split("").reduce((total,caracter)=>total+caracter.charCodeAt(0),0);
+      j.nacionalidad=NACIONALIDADES[suma%NACIONALIDADES.length];
+    }
   });
   if(equipo.presupuesto==null) equipo.presupuesto=60+equipo.nivel*25;
   if(!Array.isArray(equipo.fichajes)) equipo.fichajes=[];
