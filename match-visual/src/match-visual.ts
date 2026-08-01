@@ -157,6 +157,7 @@ namespace MatchVisual {
   export class PlayerRenderer {
     readonly container: any = new PIXI.Container();
     private readonly sprites = new Map<string, any>();
+    private readonly goalMarks = new Map<string, { mark: any; expiresAt: number }>();
     constructor(roster: PlayerDefinition[]) {
       roster.forEach(player => {
         const sprite = new PIXI.Graphics();
@@ -166,6 +167,21 @@ namespace MatchVisual {
       });
     }
     render(players: Map<string, Position>): void { players.forEach((position, id) => { const sprite = this.sprites.get(id); if (sprite) { sprite.x = position.x * 10; sprite.y = position.y * 6.4; } }); }
+    celebrateGoal(playerId: string): void {
+      const sprite = this.sprites.get(playerId); if (!sprite) return;
+      const existing = this.goalMarks.get(playerId); if (existing) { sprite.removeChild(existing.mark); existing.mark.destroy(); }
+      const mark = new PIXI.Text("⚽", { fontSize: 22, dropShadow: true, dropShadowDistance: 1, dropShadowAlpha: .65 });
+      mark.anchor.set(.5); mark.y = -28; sprite.addChild(mark);
+      this.goalMarks.set(playerId, { mark, expiresAt: performance.now() + 2600 });
+    }
+    updateGoalMarks(): void {
+      const now = performance.now();
+      this.goalMarks.forEach((entry, id) => {
+        const remaining = entry.expiresAt - now;
+        if (remaining <= 0) { const sprite = this.sprites.get(id); if (sprite) sprite.removeChild(entry.mark); entry.mark.destroy(); this.goalMarks.delete(id); }
+        else { entry.mark.alpha = Math.min(1, remaining / 450); entry.mark.y = -28 - Math.sin(remaining / 130) * 2; }
+      });
+    }
   }
 
   export class BallRenderer {
@@ -198,6 +214,7 @@ namespace MatchVisual {
       host.appendChild(this.app.view); this.clock = new PlaybackClock(timeline.duration); this.eventPlayer = new EventPlayer(timeline, roster);
       const pitch = new PitchRenderer(); this.players = new PlayerRenderer(roster); this.ball = new BallRenderer();
       this.app.stage.addChild(pitch.container, this.players.container, this.ball.sprite);
+      // Conserva la proporción del campo para que no se vea estirado en pantallas anchas.
       this.app.stage.scale.set(Math.min(host.clientWidth / 1000, host.clientHeight / 640));
       this.app.ticker.add(() => this.render(this.app.ticker.deltaMS));
     }
@@ -207,11 +224,11 @@ namespace MatchVisual {
     private render(deltaTimeMs: number): void {
       if (performance.now() < this.pauseUntil) return;
       const ended = this.clock.tick(deltaTimeMs), frame = this.eventPlayer.sample(this.clock.currentTime);
-      this.players.render(frame.players); this.ball.render(frame.ball);
+      this.players.render(frame.players); this.players.updateGoalMarks(); this.ball.render(frame.ball);
       this.callbacks.onProgress?.(Math.min(90, Math.floor(this.clock.currentTime / this.clock.duration * 90)));
       this.timeline.events.filter(event => event.type === "GOAL" && timeAfter(event, this.clock.currentTime)).forEach(event => {
         if (!this.announcedGoals.has(event.id)) {
-          this.announcedGoals.add(event.id); this.callbacks.onGoal?.(event); this.pauseUntil = performance.now() + 1450;
+          this.announcedGoals.add(event.id); this.players.celebrateGoal(event.actorId); this.callbacks.onGoal?.(event); this.pauseUntil = performance.now() + 1450;
         }
       });
       this.timeline.events.filter(event => (event.type === "BALL_OUT" || event.type === "KICK_OFF" && event.metadata.restart === true) && timeAfter(event, this.clock.currentTime)).forEach(event => {

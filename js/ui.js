@@ -1,4 +1,4 @@
-function renderInicio(){
+function renderInicioLegacy(){
   mostrarVista("vista-inicio");
   const v=document.getElementById("vista-inicio");
   v.innerHTML=`<div class="panel"><h2>Elige tu club</h2>
@@ -15,13 +15,59 @@ function renderInicio(){
   });
 }
 
-function elegirClub(id, ciudad){
+function elegirClubLegacy(id, ciudad){
   const nombre = prompt("Nombre de tu club:", "Club "+ciudad) || ("Club "+ciudad);
   // se guarda el nombre elegido para aplicarlo tras generar la liga
   nuevoJuego(id);
   const mi=JUEGO.equipos.find(e=>e.id===id); mi.nombre=nombre;
   guardarJuego(JUEGO);
   irADashboard();
+}
+
+function renderInicio(){
+  mostrarVista("vista-inicio");
+  const v=document.getElementById("vista-inicio");
+  v.innerHTML=`<div class="inicio-screen"><div class="inicio-cabecera"><span>MANAGER · MUNDIAL DE CLUBES</span><h1>Elige tu club</h1>
+    <p>Dirigirás este club durante todo el torneo. Podrás preparar su once, táctica y fichajes.</p></div>
+    <div class="club-selector"><div class="club-selector-head"><b>Clubes disponibles</b><small>Selecciona uno para continuar</small></div><div id="grid-clubes" class="grid-clubes"></div></div></div>`;
+  const grid=v.querySelector("#grid-clubes");
+  CIUDADES.forEach((ciudad,i)=>{
+    const card=document.createElement("button");
+    card.className="club-card"; card.textContent="Club "+ciudad;
+    card.style.setProperty("--i",i); card.onclick=()=>elegirClub("t"+i,ciudad);
+    grid.appendChild(card);
+  });
+}
+
+function elegirClub(id, ciudad){
+  const ov=document.createElement("div");
+  ov.className="club-confirm-ov";
+  ov.innerHTML=`<section class="club-confirm" role="dialog" aria-modal="true" aria-labelledby="club-confirm-titulo">
+    <button class="club-confirm-close" aria-label="Cerrar">×</button><span class="club-confirm-kicker">TU NUEVO CLUB</span>
+    <div class="club-confirm-ball">⚽</div><h2 id="club-confirm-titulo">Club ${ciudad}</h2>
+    <p>Estás a punto de tomar el control. Personaliza el nombre del club o confirma para comenzar.</p>
+    <label class="club-name-label">Nombre del club<input class="club-name-input" maxlength="32" value="Club ${ciudad}"></label>
+    <div class="club-confirm-actions"><button class="btn sec club-confirm-cancel">Volver</button><button class="btn club-confirm-play">Comenzar partida <span>▶</span></button></div>
+  </section>`;
+  document.body.appendChild(ov);
+  const input=ov.querySelector(".club-name-input");
+  const cerrar=()=>ov.remove();
+  const confirmar=()=>{
+    const nombre=input.value.trim() || ("Club "+ciudad);
+    cerrar(); iniciarClubElegido(id,nombre);
+  };
+  ov.querySelector(".club-confirm-close").onclick=cerrar;
+  ov.querySelector(".club-confirm-cancel").onclick=cerrar;
+  ov.querySelector(".club-confirm-play").onclick=confirmar;
+  ov.addEventListener("click",e=>{ if(e.target===ov) cerrar(); });
+  input.addEventListener("keydown",e=>{ if(e.key==="Enter") confirmar(); if(e.key==="Escape") cerrar(); });
+  setTimeout(()=>{ input.focus(); input.select(); },0);
+}
+
+function iniciarClubElegido(id,nombre){
+  nuevoJuego(id);
+  const mi=JUEGO.equipos.find(e=>e.id===id); mi.nombre=nombre;
+  guardarJuego(JUEGO); irADashboard();
 }
 
 function renderGrupos(){

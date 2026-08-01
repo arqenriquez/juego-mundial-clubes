@@ -157,6 +157,7 @@ var MatchVisual;
         constructor(roster) {
             this.container = new PIXI.Container();
             this.sprites = new Map();
+            this.goalMarks = new Map();
             roster.forEach(player => {
                 const sprite = new PIXI.Graphics();
                 sprite.beginFill(player.team === "home" ? 0x4ee5ff : 0xffce4f).lineStyle(2, 0x10202a).drawCircle(0, 0, 15).endFill();
@@ -171,6 +172,38 @@ var MatchVisual;
             sprite.x = position.x * 10;
             sprite.y = position.y * 6.4;
         } }); }
+        celebrateGoal(playerId) {
+            const sprite = this.sprites.get(playerId);
+            if (!sprite)
+                return;
+            const existing = this.goalMarks.get(playerId);
+            if (existing) {
+                sprite.removeChild(existing.mark);
+                existing.mark.destroy();
+            }
+            const mark = new PIXI.Text("⚽", { fontSize: 22, dropShadow: true, dropShadowDistance: 1, dropShadowAlpha: .65 });
+            mark.anchor.set(.5);
+            mark.y = -28;
+            sprite.addChild(mark);
+            this.goalMarks.set(playerId, { mark, expiresAt: performance.now() + 2600 });
+        }
+        updateGoalMarks() {
+            const now = performance.now();
+            this.goalMarks.forEach((entry, id) => {
+                const remaining = entry.expiresAt - now;
+                if (remaining <= 0) {
+                    const sprite = this.sprites.get(id);
+                    if (sprite)
+                        sprite.removeChild(entry.mark);
+                    entry.mark.destroy();
+                    this.goalMarks.delete(id);
+                }
+                else {
+                    entry.mark.alpha = Math.min(1, remaining / 450);
+                    entry.mark.y = -28 - Math.sin(remaining / 130) * 2;
+                }
+            });
+        }
     }
     MatchVisual.PlayerRenderer = PlayerRenderer;
     class BallRenderer {
@@ -194,6 +227,7 @@ var MatchVisual;
             this.players = new PlayerRenderer(roster);
             this.ball = new BallRenderer();
             this.app.stage.addChild(pitch.container, this.players.container, this.ball.sprite);
+            // Conserva la proporción del campo para que no se vea estirado en pantallas anchas.
             this.app.stage.scale.set(Math.min(host.clientWidth / 1000, host.clientHeight / 640));
             this.app.ticker.add(() => this.render(this.app.ticker.deltaMS));
         }
@@ -206,12 +240,14 @@ var MatchVisual;
                 return;
             const ended = this.clock.tick(deltaTimeMs), frame = this.eventPlayer.sample(this.clock.currentTime);
             this.players.render(frame.players);
+            this.players.updateGoalMarks();
             this.ball.render(frame.ball);
             (_b = (_a = this.callbacks).onProgress) === null || _b === void 0 ? void 0 : _b.call(_a, Math.min(90, Math.floor(this.clock.currentTime / this.clock.duration * 90)));
             this.timeline.events.filter(event => event.type === "GOAL" && timeAfter(event, this.clock.currentTime)).forEach(event => {
                 var _a, _b;
                 if (!this.announcedGoals.has(event.id)) {
                     this.announcedGoals.add(event.id);
+                    this.players.celebrateGoal(event.actorId);
                     (_b = (_a = this.callbacks).onGoal) === null || _b === void 0 ? void 0 : _b.call(_a, event);
                     this.pauseUntil = performance.now() + 1450;
                 }

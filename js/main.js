@@ -87,7 +87,7 @@ function autoAlinear(equipo){
   });
 }
 
-function arrancar(){
+function arrancarLegacy(){
   if(hayGuardado()){
     if(confirm("Hay una partida guardada. ¿Continuar?")){
       Object.assign(JUEGO, cargarJuego());
@@ -99,6 +99,30 @@ function arrancar(){
     } else { borrarGuardado(); }
   }
   renderInicio();
+}
+
+function arrancar(){
+  mostrarBienvenida();
+}
+
+function mostrarBienvenida(){
+  const hayPartida=hayGuardado();
+  const ov=document.createElement("div");
+  ov.className="inicio-ov";
+  ov.innerHTML=`<section class="inicio-modal" role="dialog" aria-modal="true" aria-labelledby="inicio-modal-titulo">
+    <span class="inicio-modal-kicker">MUNDIAL DE CLUBES</span><div class="inicio-modal-ball">⚽</div>
+    <h1 id="inicio-modal-titulo">Nueva partida</h1><p>${hayPartida?"Tienes una partida guardada. Puedes continuarla o iniciar un torneo desde cero.":"Toma el control de un club y llévalo hasta la final."}</p>
+    <div class="inicio-modal-actions">${hayPartida?'<button class="btn sec inicio-continuar">Continuar partida</button>':''}<button class="btn inicio-nueva">Partida nueva <span>▶</span></button></div>
+  </section>`;
+  document.body.appendChild(ov);
+  const cerrar=()=>ov.remove();
+  ov.querySelector(".inicio-nueva").onclick=()=>{ if(hayPartida) borrarGuardado(); cerrar(); renderInicio(); };
+  if(hayPartida) ov.querySelector(".inicio-continuar").onclick=()=>{
+    Object.assign(JUEGO,cargarJuego()); JUEGO.rng=Math.random;
+    JUEGO.equipos.forEach(migrarPosicionesPlantilla);
+    if(JUEGO.ventasCiclo==null) JUEGO.ventasCiclo=0;
+    cerrar(); enrutarPorFase();
+  };
 }
 
 function enrutarPorFase(){
