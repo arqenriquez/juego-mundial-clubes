@@ -1,0 +1,12 @@
+{
+  "compilerOptions": {
+    "target": "ES2019",
+    "lib": ["DOM", "ES2019"],
+    "strict": true,
+    "noEmitOnError": true,
+    "module": "none",
+    "outFile": "js/match-visual.js",
+    "skipLibCheck": true
+  },
+  "files": ["match-visual/src/match-visual.ts"]
+}

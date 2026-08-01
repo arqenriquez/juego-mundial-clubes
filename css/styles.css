@@ -233,6 +233,8 @@ body{background:var(--bg);color:var(--texto);
   max-height:120px;overflow:auto}
 .p2d-eventos b{display:block;color:var(--tenue);font-size:.8rem;margin-bottom:6px}
 .p2d-ev{font-size:.85rem;padding:2px 0;animation:entrarSubiendo .3s ease-out both}
+.p2d-pixi-host{position:relative;flex:1;min-height:340px;border-radius:12px;overflow:hidden;background:#14351f}
+.p2d-pixi-host canvas{display:block;width:100%;height:100%}
 
 /* ---- Selector de modo de partido ---- */
 .modo-ov{position:fixed;inset:0;z-index:60;background:rgba(13,17,23,.8);

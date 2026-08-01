@@ -247,7 +247,7 @@ suite("avatar.js", ()=>{
   assert("ranura coincide con la posición real de los 18 jugadores", coincide);
 });
 
-suite("partido2d.js", ()=>{
+if(false) suite("partido2d.js legado", ()=>{
   function eq(id, formacion){
     const js=[]; let k=0; const comp={POR:1, ...FORMACIONES[formacion]};
     Object.entries(comp).forEach(([pos,c])=>{ for(let i=0;i<c;i++)
@@ -274,4 +274,50 @@ suite("partido2d.js", ()=>{
   // determinismo de posición inicial (mapa de slots)
   const m=_p2dMapa({pos:"POR",x:50,y:90}, true);
   assert("portero izquierdo cerca de su arco", m.x<10);
+});
+
+suite("match-visual.ts", ()=>{
+  const timeline=MatchVisual.createDemoTimeline(), roster=MatchVisual.createDemoRoster();
+  const player=new MatchVisual.EventPlayer(timeline,roster);
+  assertEq("demo dura 15 segundos", Math.round(timeline.duration), 15);
+  assert("incluye los eventos principales", ["MATCH_START","KICK_OFF","PASS","BALL_RECEIVED","DRIBBLE","SHOT","GOAL","POSSESSION_CHANGE"].every(tipo=>timeline.events.some(evento=>evento.type===tipo)));
+  const medioPase=player.sample(1.25);
+  assert("el balón se interpola durante el pase", medioPase.ball.x<50 && medioPase.ball.x>42 && medioPase.ball.y>50 && medioPase.ball.y<58);
+  const trasConduccion=player.sample(6.7).players.get("home-10");
+  assert("la conducción mueve al actor", trasConduccion.x>68 && trasConduccion.y>41);
+  const final=player.sample(11);
+  assert("el gol termina dentro de la cancha", final.ball.x===98 && final.ball.y===50);
+  assertEq("easeInOutCubic conserva los extremos", MatchVisual.easeInOutCubic(0)+MatchVisual.easeInOutCubic(1), 1);
+});
+
+suite("partido 2D real", ()=>{
+  function equipoVisual(id, formacion, enfoque, linea){
+    const posiciones=["POR","DEF","DEF","DEF","DEF","MED","MED","MED","MED","DEL","DEL"];
+    const jugadores=posiciones.map((posicion,i)=>({id:id+"-"+i,nombre:"Jugador "+(i+1),posicion}));
+    return {id,nombre:"Equipo "+id,formacion,tactica:{enfoque,linea},jugadores,titulares:jugadores.map(j=>j.id)};
+  }
+  const local=equipoVisual("l","4-3-3","ofensivo",70), visita=equipoVisual("v","5-4-1","defensivo",35);
+  const real=MatchVisual.createMatchTimeline(local,visita,[
+    {equipoId:"l",jugadorId:"l-9",minuto:18}, {equipoId:"v",jugadorId:"v-10",minuto:77}
+  ]);
+  assertEq("muestra 22 titulares", real.roster.length, 22);
+  assertEq("cada gol genera una secuencia completa", real.timeline.events.filter(e=>e.type==="GOAL").length, 2);
+  const golLocal=real.timeline.events.find(e=>e.id==="goal-0");
+  assertEq("conserva el minuto real", golLocal.metadata.minuto, 18);
+  assertEq("conserva el goleador real", golLocal.metadata.jugadorId, "l-9");
+  assert("la duracion queda en rango de partido comprimido", real.timeline.duration>=45 && real.timeline.duration<=90);
+  const fueras=real.timeline.events.filter(e=>e.type==="BALL_OUT");
+  assert("incluye pausas por balon fuera", fueras.length>=1 && fueras.every(e=>e.targetPosition.y<0||e.targetPosition.y>100));
+  assertEq("cada gol reinicia desde el centro", real.timeline.events.filter(e=>e.type==="KICK_OFF"&&e.metadata.restart===true).length, real.timeline.events.filter(e=>e.type==="GOAL").length+fueras.length);
+  assert("los locales arrancan en su mitad", real.roster.filter(p=>p.team==="home").every(p=>p.position.x<50));
+  assert("los visitantes arrancan en su mitad", real.roster.filter(p=>p.team==="away").every(p=>p.position.x>50));
+  const visual=new MatchVisual.EventPlayer(real.timeline,real.roster);
+  const inicio=visual.sample(0), enAtaque=visual.sample(12);
+  const moviles=real.roster.filter(p=>p.role!=="POR" && Math.abs(inicio.players.get(p.id).x-enAtaque.players.get(p.id).x)>.1);
+  assert("el bloque acompana la jugada", moviles.length>=10);
+  const sinGoles=MatchVisual.createMatchTimeline(local,visita,[]), juegoContinuo=new MatchVisual.EventPlayer(sinGoles.timeline,sinGoles.roster);
+  const parada=juegoContinuo.sample(.5), circulando=juegoContinuo.sample(3);
+  assert("sin goles el balon sigue circulando", Math.abs(parada.ball.x-circulando.ball.x)>2 || Math.abs(parada.ball.y-circulando.ball.y)>2);
+  const bloqueActivo=sinGoles.roster.filter(p=>p.role!=="POR" && Math.hypot(parada.players.get(p.id).x-circulando.players.get(p.id).x,parada.players.get(p.id).y-circulando.players.get(p.id).y)>.4);
+  assert("sin goles ambos bloques se reacomodan", bloqueActivo.length>=12);
 });

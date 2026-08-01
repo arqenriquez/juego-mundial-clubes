@@ -1,0 +1,11 @@
+{
+  "name": "juego-mundial-clubes",
+  "private": true,
+  "scripts": {
+    "build:match-visual": "tsc -p tsconfig.json",
+    "test": "node -e \"const fs=require('fs');eval(['js/testkit.js','js/data.js','js/models.js','js/generator.js','js/mechanics.js','js/engine.js','js/tournament.js','js/transfers.js','js/avatar.js','js/match-visual.js','js/partido2d.js','js/tests.js'].map(f=>fs.readFileSync(f,'utf8')).join('\\n'));const r=correrPruebas();process.exit(r.totalPass===r.total?0:1)\""
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3"
+  }
+}
