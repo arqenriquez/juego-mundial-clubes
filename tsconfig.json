@@ -8,5 +8,5 @@
     "outFile": "js/match-visual.js",
     "skipLibCheck": true
   },
-  "files": ["match-visual/src/match-visual.ts"]
+  "files": ["match-visual/src/simulation.ts", "match-visual/src/match-visual.ts"]
 }

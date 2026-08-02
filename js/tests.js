@@ -307,8 +307,13 @@ suite("partido 2D real", ()=>{
   assertEq("conserva el goleador real", golLocal.metadata.jugadorId, "l-9");
   assert("la duracion queda en rango de partido comprimido", real.timeline.duration>=45 && real.timeline.duration<=90);
   const fueras=real.timeline.events.filter(e=>e.type==="BALL_OUT");
-  assert("incluye pausas por balon fuera", fueras.length>=1 && fueras.every(e=>e.targetPosition.y<0||e.targetPosition.y>100));
-  assertEq("cada gol reinicia desde el centro", real.timeline.events.filter(e=>e.type==="KICK_OFF"&&e.metadata.restart===true).length, real.timeline.events.filter(e=>e.type==="GOAL").length+fueras.length);
+  const reanudaciones=real.timeline.events.filter(e=>["THROW_IN","GOAL_KICK","CORNER_KICK"].includes(e.type));
+  assert("incluye pausas por balon fuera", fueras.length>=1 && fueras.every(e=>e.metadata.setPiece===true));
+  assert("incluye banda, meta y esquina", ["THROW_IN","GOAL_KICK","CORNER_KICK"].every(tipo=>reanudaciones.some(e=>e.type===tipo)));
+  const movimientosCorner=real.timeline.events.filter(e=>e.type==="PLAYER_MOVE"&&e.metadata.type==="CORNER_KICK");
+  const porteros=new Set(real.roster.filter(p=>p.role==="POR").map(p=>p.id));
+  assert("el córner carga a los jugadores de campo al área", movimientosCorner.length>=19 && movimientosCorner.every(e=>!porteros.has(e.actorId)));
+  assertEq("cada gol reinicia desde el centro", real.timeline.events.filter(e=>e.type==="KICK_OFF"&&e.metadata.restart===true).length, real.timeline.events.filter(e=>e.type==="GOAL").length);
   assert("los locales arrancan en su mitad", real.roster.filter(p=>p.team==="home").every(p=>p.position.x<50));
   assert("los visitantes arrancan en su mitad", real.roster.filter(p=>p.team==="away").every(p=>p.position.x>50));
   const visual=new MatchVisual.EventPlayer(real.timeline,real.roster);
@@ -320,4 +325,53 @@ suite("partido 2D real", ()=>{
   assert("sin goles el balon sigue circulando", Math.abs(parada.ball.x-circulando.ball.x)>2 || Math.abs(parada.ball.y-circulando.ball.y)>2);
   const bloqueActivo=sinGoles.roster.filter(p=>p.role!=="POR" && Math.hypot(parada.players.get(p.id).x-circulando.players.get(p.id).x,parada.players.get(p.id).y-circulando.players.get(p.id).y)>.4);
   assert("sin goles ambos bloques se reacomodan", bloqueActivo.length>=12);
+  const ataqueProfundo=juegoContinuo.sample(5);
+  assert("los delanteros atacan el área rival con posesión", sinGoles.roster.filter(p=>p.team==="home"&&p.role==="DEL").some(p=>ataqueProfundo.players.get(p.id).x>78));
+});
+
+suite("simulation core", ()=>{
+  const entradas=[
+    {id:"h-por",team:"home",role:"POR",position:{x:6,y:34},speed:65,passing:60,stamina:1},
+    {id:"h-med",team:"home",role:"MED",position:{x:35,y:34},speed:72,passing:78,stamina:1},
+    {id:"h-del",team:"home",role:"DEL",position:{x:46,y:28},speed:80,passing:68,stamina:1},
+    {id:"a-por",team:"away",role:"POR",position:{x:99,y:34},speed:65,passing:60,stamina:1},
+    {id:"a-med",team:"away",role:"MED",position:{x:70,y:34},speed:72,passing:75,stamina:1},
+    {id:"a-del",team:"away",role:"DEL",position:{x:60,y:40},speed:80,passing:65,stamina:1}
+  ];
+  const aleatorioA=new MatchVisual.SeededRandom(991), aleatorioB=new MatchVisual.SeededRandom(991);
+  assert("misma semilla produce la misma secuencia", [aleatorioA.next(),aleatorioA.next(),aleatorioA.next()].join(",")===[aleatorioB.next(),aleatorioB.next(),aleatorioB.next()].join(","));
+  const a=new MatchVisual.TacticalMatchSimulation(entradas,77), b=new MatchVisual.TacticalMatchSimulation(entradas,77);
+  for(let i=0;i<40;i++){ a.step(100); b.step(100); }
+  assertEq("paso fijo es determinista", JSON.stringify(a.snapshot()), JSON.stringify(b.snapshot()));
+  const estado=a.snapshot();
+  assert("jugadores y balón se mantienen dentro de la cancha", estado.ball.x>=0&&estado.ball.x<=105&&estado.ball.y>=0&&estado.ball.y<=68&&estado.players.every(p=>p.position.x>=0&&p.position.x<=105&&p.position.y>=0&&p.position.y<=68));
+  assert("el motor registra decisiones de pase", a.eventLog().some(e=>e.type==="PASS_ATTEMPTED"));
+  const replay=new MatchVisual.SimulationReplay(entradas,6,77), medio=replay.sample(2.55);
+  assert("el replay interpola entre snapshots", medio.time>2.5&&medio.time<2.6&&medio.players.length===entradas.length);
+  const conTresDelanteros=entradas.concat([
+    {id:"h-del-2",team:"home",role:"DEL",position:{x:44,y:18},speed:78,passing:65,stamina:1},
+    {id:"h-del-3",team:"home",role:"DEL",position:{x:44,y:50},speed:77,passing:64,stamina:1}
+  ]);
+  const forma=new MatchVisual.TacticalMatchSimulation(conTresDelanteros,77); for(let i=0;i<50;i++) forma.step(100);
+  const ataque=forma.snapshot(), puntas=ataque.players.filter(p=>p.team==="home"&&p.id.indexOf("h-del")===0).map(p=>p.position.x);
+  assert("los delanteros escalonan su profundidad", Math.max(...puntas)-Math.min(...puntas)>7);
+  assert("los jugadores respetan un margen de cancha", ataque.players.every(p=>p.position.x>=2&&p.position.x<=103&&p.position.y>=2&&p.position.y<=66));
+  const lineas=conTresDelanteros.concat([
+    {id:"h-def-1",team:"home",role:"DEF",position:{x:20,y:12},speed:70,passing:66,stamina:1},
+    {id:"h-def-2",team:"home",role:"DEF",position:{x:20,y:27},speed:69,passing:67,stamina:1},
+    {id:"h-def-3",team:"home",role:"DEF",position:{x:20,y:42},speed:71,passing:66,stamina:1},
+    {id:"h-def-4",team:"home",role:"DEF",position:{x:20,y:57},speed:70,passing:65,stamina:1},
+    {id:"a-def-1",team:"away",role:"DEF",position:{x:85,y:12},speed:70,passing:66,stamina:1},
+    {id:"a-def-2",team:"away",role:"DEF",position:{x:85,y:27},speed:69,passing:67,stamina:1},
+    {id:"a-def-3",team:"away",role:"DEF",position:{x:85,y:42},speed:71,passing:66,stamina:1},
+    {id:"a-def-4",team:"away",role:"DEF",position:{x:85,y:57},speed:70,passing:65,stamina:1}
+  ]), movimientos=new MatchVisual.TacticalMatchSimulation(lineas,193), inicio=new Map(movimientos.snapshot().players.map(p=>[p.id,p.position]));
+  for(let i=0;i<18;i++) movimientos.step(100);
+  const finalMovimientos=movimientos.snapshot().players;
+  ["home","away"].forEach(equipo=>{
+    const firmas=finalMovimientos.filter(p=>p.team===equipo&&p.id.indexOf("def-")>0).map(p=>{
+      const antes=inicio.get(p.id); return `${(p.position.x-antes.x).toFixed(1)},${(p.position.y-antes.y).toFixed(1)}`;
+    });
+    assert(`la defensa ${equipo} reacciona con movimientos individuales`,new Set(firmas).size>=3);
+  });
 });

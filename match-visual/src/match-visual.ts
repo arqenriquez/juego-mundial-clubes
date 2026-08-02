@@ -6,14 +6,15 @@ declare const PIXI: any;
 
 namespace MatchVisual {
   export type EventType = "MATCH_START" | "POSSESSION_CHANGE" | "PLAYER_MOVE" | "DRIBBLE" |
-    "PASS" | "BALL_RECEIVED" | "SHOT" | "SAVE" | "GOAL" | "KICK_OFF" | "BALL_OUT";
+    "PASS" | "BALL_RECEIVED" | "SHOT" | "SAVE" | "GOAL" | "KICK_OFF" | "BALL_OUT" |
+    "THROW_IN" | "GOAL_KICK" | "CORNER_KICK";
   export type Position = { x: number; y: number };
   export type MatchEvent = {
     id: string; type: EventType; startTime: number; duration: number; actorId: string;
     targetId?: string; startPosition?: Position; targetPosition?: Position;
     metadata: Record<string, unknown>;
   };
-  export type PlayerDefinition = { id: string; team: "home" | "away"; number: number; name: string; role: string; position: Position };
+  export type PlayerDefinition = { id: string; team: "home" | "away"; number: number; name: string; role: string; position: Position; speed?: number; passing?: number; stamina?: number };
   export type Frame = { players: Map<string, Position>; ball: Position; possession: string | null };
 
   export const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
@@ -49,7 +50,18 @@ namespace MatchVisual {
 
   // EventPlayer transforma tiempo + eventos en un frame de render, sin dibujar nada.
   export class EventPlayer {
-    constructor(private readonly timeline: MatchTimeline, private readonly roster: PlayerDefinition[]) {}
+    private readonly tacticalReplay: SimulationReplay;
+    constructor(private readonly timeline: MatchTimeline, private readonly roster: PlayerDefinition[]) {
+      const inputs: SimulationPlayerInput[] = roster.map(player => ({
+        id: player.id, team: player.team, role: player.role, position: { x: player.position.x * 1.05, y: player.position.y * .68 },
+        speed: player.speed ?? 68, passing: player.passing ?? 68, stamina: player.stamina ?? .94
+      }));
+      const seed = roster.reduce((total, player) => {
+        for (let index = 0; index < player.id.length; index++) total = ((total * 31) + player.id.charCodeAt(index)) >>> 0;
+        return total;
+      }, 2166136261);
+      this.tacticalReplay = new SimulationReplay(inputs, Math.max(1, timeline.duration), seed);
+    }
     private tacticalState(time: number): { ball: Position; possession: string | null } {
       // Posesiones breves, con el balón atravesando zonas distintas; son deterministas.
       const phases = [
@@ -67,12 +79,12 @@ namespace MatchVisual {
     }
     private isScriptedAction(time: number): boolean {
       return this.timeline.events.some(event =>
-        event.type === "GOAL" && typeof event.metadata.minuto === "number" && time >= event.startTime - 5.1 && time <= event.startTime + .5 ||
-        event.type === "BALL_OUT" && time >= event.startTime - .1 && time <= event.startTime + 1.4
+        (event.type === "GOAL" && typeof event.metadata.minuto === "number" && time >= event.startTime - 5.1 && time <= event.startTime + .5) ||
+        (event.metadata.setPiece === true && time >= event.startTime - .1 && time <= event.startTime + event.duration + .1)
       );
     }
     sample(time: number): Frame {
-      const players = new Map(this.roster.map(player => [player.id, { ...player.position }]));
+      let players = new Map(this.roster.map(player => [player.id, { ...player.position }]));
       let possession: string | null = null;
       let ball: Position = { x: 50, y: 50 };
       const completed = this.timeline.events.filter(event => time >= event.startTime);
@@ -83,14 +95,16 @@ namespace MatchVisual {
         if ((event.type === "PLAYER_MOVE" || event.type === "DRIBBLE") && actor && event.targetPosition) {
           players.set(event.actorId, positionLerp(event.startPosition || actor, event.targetPosition, eased));
         }
-        if (event.type === "POSSESSION_CHANGE" || event.type === "KICK_OFF" || event.type === "BALL_RECEIVED") {
+        if (event.type === "POSSESSION_CHANGE" || event.type === "KICK_OFF" || event.type === "BALL_RECEIVED" || event.type === "THROW_IN" || event.type === "GOAL_KICK" || event.type === "CORNER_KICK") {
           if (progress === 1) possession = event.targetId || event.actorId;
         }
       });
       // La última posesión completada fija el balón al jugador, salvo mientras está viajando.
-      const possessionEvents = completed.filter(event => (event.type === "POSSESSION_CHANGE" || event.type === "KICK_OFF" || event.type === "BALL_RECEIVED") && (event.duration <= 0 || time >= event.startTime + event.duration));
+      const possessionEvents = completed.filter(event => (event.type === "POSSESSION_CHANGE" || event.type === "KICK_OFF" || event.type === "BALL_RECEIVED" || event.type === "THROW_IN" || event.type === "GOAL_KICK" || event.type === "CORNER_KICK") && (event.duration <= 0 || time >= event.startTime + event.duration));
       if (possessionEvents.length) possession = possessionEvents[possessionEvents.length - 1].targetId || possessionEvents[possessionEvents.length - 1].actorId;
-      if (possession && players.has(possession)) ball = { ...players.get(possession)! };
+      const lastPossessionEvent = possessionEvents[possessionEvents.length - 1];
+      if (lastPossessionEvent?.targetPosition) ball = { ...lastPossessionEvent.targetPosition };
+      else if (possession && players.has(possession)) ball = { ...players.get(possession)! };
       const flight = this.timeline.activeAt(time).filter(event => event.type === "PASS" || event.type === "SHOT" || event.type === "SAVE").pop();
       if (flight && flight.startPosition && flight.targetPosition) {
         const progress = flight.duration <= 0 ? 1 : clamp((time - flight.startTime) / flight.duration, 0, 1);
@@ -98,12 +112,17 @@ namespace MatchVisual {
       }
       const terminal = completed.filter(event => event.type === "GOAL" && time >= event.startTime + event.duration).pop();
       if (terminal?.targetPosition) ball = { ...terminal.targetPosition };
-      const out = this.timeline.activeAt(time).filter(event => event.type === "BALL_OUT").pop();
-      if (out?.targetPosition) ball = { ...out.targetPosition };
+      const out = completed.filter(event => event.type === "BALL_OUT").pop();
+      const followingRestart = out && this.timeline.events.find(event => event.metadata.setPiece === true && ["THROW_IN", "GOAL_KICK", "CORNER_KICK"].includes(event.type) && event.startTime > out.startTime);
+      if (out?.targetPosition && (!followingRestart || time < followingRestart.startTime)) ball = { ...out.targetPosition };
       // Entre jugadas decisivas hay posesiones y cambios de zona: el partido nunca queda congelado.
       const isRealMatch = this.timeline.events.some(event => event.metadata.realMatch === true || (event.type === "GOAL" && typeof event.metadata.minuto === "number"));
-      if (isRealMatch && !this.isScriptedAction(time) && time >= .75) {
-        const tactical = this.tacticalState(time); ball = tactical.ball; possession = tactical.possession;
+      const usingTacticalReplay = isRealMatch && !this.isScriptedAction(time) && time >= .75;
+      if (usingTacticalReplay) {
+        const tactical = this.tacticalReplay.sample(time);
+        players = new Map(tactical.players.map(player => [player.id, { x: player.position.x / 1.05, y: player.position.y / .68 }]));
+        ball = { x: tactical.ball.x / 1.05, y: tactical.ball.y / .68 };
+        possession = tactical.possession;
       }
       // El bloque completo acompaña la acción: ataque ofrece apoyos y defensa bascula/presiona.
       // Parte siempre de la formación base, por lo que cada equipo conserva su lado al inicio.
@@ -113,15 +132,21 @@ namespace MatchVisual {
         .sort((a, b) => Math.hypot(a.position.x - ball.x, a.position.y - ball.y) - Math.hypot(b.position.x - ball.x, b.position.y - ball.y));
       players.forEach((current, id) => {
         const player = this.roster.find(item => item.id === id);
-        if (!player || player.role === "POR" || time < .75 || !possessionTeam) return;
+        if (!player || player.role === "POR" || time < .75 || !possessionTeam || usingTacticalReplay) return;
         const executingAction = this.timeline.events.some(event => event.actorId === id && (event.type === "PLAYER_MOVE" || event.type === "DRIBBLE") && time >= event.startTime && time <= event.startTime + event.duration + .8);
         if (executingAction) return; // la conducción/carrera principal conserva su trayectoria precisa
         const index = this.roster.indexOf(player);
         const direction = player.team === "home" ? 1 : -1;
         const attacking = player.team === possessionTeam;
         const ballAdvance = (ball.x - 50) * direction;
-        const advance = attacking ? 5 + ballAdvance * .22 : -5 + ballAdvance * .14;
-        const roleWeight = player.role === "DEF" ? .65 : player.role === "MED" ? 1 : 1.22;
+        // En ataque los delanteros atacan el último tercio; medios llegan a la frontal y defensas sostienen.
+        const positiveAdvance = Math.max(0, ballAdvance);
+        const advance = attacking
+          ? player.role === "DEL" ? 32 + positiveAdvance * .8 + Math.min(0, ballAdvance) * .12
+            : player.role === "MED" ? 16 + positiveAdvance * .38 + Math.min(0, ballAdvance) * .1
+              : 7 + positiveAdvance * .16
+          : -6 + ballAdvance * .14;
+        const roleWeight = attacking ? 1 : (player.role === "DEF" ? .65 : player.role === "MED" ? 1 : 1.22);
         // Micro-movimientos permanentes: cada jugador ofrece una línea de pase o cierra un espacio.
         const rhythm = time * (3.3 + (index % 3) * .35) + index * 1.7;
         const lateralRun = Math.sin(rhythm) * (player.role === "DEL" ? 3.8 : 2.8);
@@ -135,7 +160,7 @@ namespace MatchVisual {
           // Uno presiona directamente y un segundo cubre el pase corto.
           target = positionLerp(target, ball, pressingRank === 0 ? .58 : .34);
         }
-        players.set(id, positionLerp(current, target, .72));
+        players.set(id, positionLerp(current, target, .88));
       });
       return { players, ball, possession };
     }
@@ -195,7 +220,8 @@ namespace MatchVisual {
     onFinished?: () => void;
     onProgress?: (minute: number) => void;
     onGoal?: (event: MatchEvent) => void;
-    onOut?: () => void;
+    onOut?: (event: MatchEvent) => void;
+    onSetPiece?: (event: MatchEvent) => void;
     onRestart?: () => void;
   };
 
@@ -208,6 +234,7 @@ namespace MatchVisual {
     private finished = false;
     private readonly announcedGoals = new Set<string>();
     private readonly announcedInterruptions = new Set<string>();
+    private readonly announcedSetPieces = new Set<string>();
     private pauseUntil = 0;
     constructor(host: HTMLElement, private readonly timeline: MatchTimeline, roster: PlayerDefinition[], private readonly callbacks: VisualCallbacks = {}) {
       this.app = new PIXI.Application({ resizeTo: host, backgroundAlpha: 0, antialias: true });
@@ -228,14 +255,17 @@ namespace MatchVisual {
       this.callbacks.onProgress?.(Math.min(90, Math.floor(this.clock.currentTime / this.clock.duration * 90)));
       this.timeline.events.filter(event => event.type === "GOAL" && timeAfter(event, this.clock.currentTime)).forEach(event => {
         if (!this.announcedGoals.has(event.id)) {
-          this.announcedGoals.add(event.id); this.players.celebrateGoal(event.actorId); this.callbacks.onGoal?.(event); this.pauseUntil = performance.now() + 1450;
+          this.announcedGoals.add(event.id); this.callbacks.onGoal?.(event); this.pauseUntil = performance.now() + 1450;
         }
       });
       this.timeline.events.filter(event => (event.type === "BALL_OUT" || event.type === "KICK_OFF" && event.metadata.restart === true) && timeAfter(event, this.clock.currentTime)).forEach(event => {
         if (this.announcedInterruptions.has(event.id)) return;
         this.announcedInterruptions.add(event.id);
-        if (event.type === "BALL_OUT") { this.callbacks.onOut?.(); this.pauseUntil = performance.now() + 850; }
+        if (event.type === "BALL_OUT") { this.callbacks.onOut?.(event); this.pauseUntil = performance.now() + 850; }
         else this.callbacks.onRestart?.();
+      });
+      this.timeline.events.filter(event => ["THROW_IN", "GOAL_KICK", "CORNER_KICK"].includes(event.type) && timeAfter(event, this.clock.currentTime)).forEach(event => {
+        if (!this.announcedSetPieces.has(event.id)) { this.announcedSetPieces.add(event.id); this.callbacks.onSetPiece?.(event); }
       });
       if (ended && !this.finished) { this.finished = true; this.callbacks.onFinished?.(); }
     }
@@ -270,7 +300,7 @@ namespace MatchVisual {
       { id: "away-1", team: "away", number: 1, name: "1", role: "POR", position: { x: 94, y: 50 } }
     ];
   }
-  type GamePlayer = { id: string; nombre: string; posicion: string };
+  type GamePlayer = { id: string; nombre: string; posicion: string; velocidad?: number; pase?: number; cansancio?: number };
   type GameTeam = { id: string; nombre: string; formacion?: string; tactica?: { enfoque?: string; linea?: number }; titulares: string[]; jugadores: GamePlayer[] };
   type Goal = { equipoId: string; jugadorId: string; minuto: number };
 
@@ -286,7 +316,7 @@ namespace MatchVisual {
     const line = team.tactica?.linea ?? 50, focus = team.tactica?.enfoque ?? "equilibrado";
     const byRole = ["POR", "DEF", "MED", "DEL"].flatMap(role => {
       const players = starters.filter(player => group(player.posicion) === role);
-      return players.map((player, index) => ({ id: player.id, team: side, number: starters.indexOf(player) + 1, name: player.nombre, role, position: slots(role, players.length, side === "home", line, focus)[index] }));
+      return players.map((player, index) => ({ id: player.id, team: side, number: starters.indexOf(player) + 1, name: player.nombre, role, position: slots(role, players.length, side === "home", line, focus)[index], speed: player.velocidad ?? 68, passing: player.pase ?? 68, stamina: Math.max(0, 1 - (player.cansancio ?? 0) / 100) }));
     });
     return byRole.length ? byRole : createDemoRoster().filter(player => player.team === side);
   };
@@ -328,16 +358,79 @@ namespace MatchVisual {
     // Mantiene el movimiento del partido aun cuando no haya goles.
     const duration = Math.max(48, Math.min(88, lastEnd + 6));
     // Interrupciones breves para dar respiración a la simulación, como en una transmisión táctica.
+    const agregarReanudacion = (time: number, index: number, type: "THROW_IN" | "GOAL_KICK" | "CORNER_KICK") => {
+      const team: "home" | "away" = index % 2 === 0 ? "home" : "away";
+      const attackers = roster.filter(player => player.team === team), defenders = roster.filter(player => player.team !== team);
+      const direction = team === "home" ? 1 : -1;
+      const taker = select(attackers, type === "GOAL_KICK" ? ["POR"] : ["DEF", "MED"], attackers[0]);
+      const receiver = select(attackers.filter(player => player.id !== taker.id), type === "CORNER_KICK" ? ["DEL", "MED"] : ["MED", "DEF", "DEL"], attackers[0]);
+      const marker = select(defenders, ["DEF", "MED"], defenders[0]);
+      const pressure = select(defenders, ["DEL", "MED"], defenders[0]);
+      const label = type === "THROW_IN" ? "Saque de banda" : type === "GOAL_KICK" ? "Saque de meta" : "Tiro de esquina";
+      const meta = { setPiece: true, type, label, team };
+      const mover = (id: string, from: Position, to: Position, offset: number) => {
+        // Tambien en las reanudaciones cada jugador arranca y llega con un ritmo distinto.
+        const signature = id.split("").reduce((total, character) => total + character.charCodeAt(0), 0);
+        const delayedOffset = offset + (signature % 6) * .026;
+        const duration = .34 + ((signature >>> 3) % 7) * .045;
+        return event(`set-move-${type}-${index}-${id}`, "PLAYER_MOVE", time + delayedOffset, duration, id, undefined, from, to, meta);
+      };
+      events.push(event(`set-window-${index}`, "MATCH_START", time, 2.45, taker.id, undefined, taker.position, taker.position, meta));
+      if (type === "THROW_IN") {
+        const sideline = index % 2 ? 97 : 3, edge = { x: 30 + (index % 3) * 18, y: sideline };
+        const target = { x: clamp(edge.x + direction * 12, 12, 88), y: sideline < 50 ? 14 : 86 };
+        const out = { x: edge.x, y: sideline < 50 ? -4 : 104 };
+        events.push(
+          event(`out-${index}`, "BALL_OUT", time, .15, taker.id, undefined, taker.position, out, meta),
+          mover(taker.id, taker.position, edge, .18), mover(receiver.id, receiver.position, target, .22), mover(pressure.id, pressure.position, { x: target.x - direction * 4, y: target.y }, .28),
+          event(`throw-${index}`, "THROW_IN", time + 1.05, .16, taker.id, taker.id, edge, edge, meta),
+          event(`throw-pass-${index}`, "PASS", time + 1.28, .58, taker.id, receiver.id, edge, target, meta),
+          event(`throw-receive-${index}`, "BALL_RECEIVED", time + 1.86, 0, receiver.id, receiver.id, target, target, meta)
+        );
+      } else if (type === "GOAL_KICK") {
+        const goalSpot = { x: team === "home" ? 7 : 93, y: 50 }, out = { x: team === "home" ? -4 : 104, y: index % 2 ? 27 : 73 };
+        const target = { x: team === "home" ? 23 : 77, y: index % 2 ? 37 : 63 };
+        const cover = { x: team === "home" ? 18 : 82, y: index % 2 ? 68 : 32 };
+        events.push(
+          event(`out-${index}`, "BALL_OUT", time, .15, taker.id, undefined, taker.position, out, meta),
+          mover(taker.id, taker.position, goalSpot, .18), mover(receiver.id, receiver.position, target, .22), mover(marker.id, marker.position, cover, .25), mover(pressure.id, pressure.position, { x: target.x + direction * 10, y: target.y }, .3),
+          event(`goal-kick-${index}`, "GOAL_KICK", time + 1.05, .16, taker.id, taker.id, goalSpot, goalSpot, meta),
+          event(`goal-kick-pass-${index}`, "PASS", time + 1.3, .78, taker.id, receiver.id, goalSpot, target, meta),
+          event(`goal-kick-receive-${index}`, "BALL_RECEIVED", time + 2.08, 0, receiver.id, receiver.id, target, target, meta)
+        );
+      } else {
+        const cornerY = index % 2 ? 97 : 3, corner = { x: team === "home" ? 98 : 2, y: cornerY };
+        const out = { x: team === "home" ? 103 : -3, y: cornerY < 50 ? 0 : 100 };
+        const target = { x: team === "home" ? 87 : 13, y: cornerY < 50 ? 45 : 55 };
+        // En un córner, todos los jugadores de campo se cargan al área rival o la protegen.
+        // Los porteros se mantienen en sus porterías y el cobrador queda junto al banderín.
+        const attackingField = attackers.filter(player => player.role !== "POR" && player.id !== taker.id);
+        const defendingField = defenders.filter(player => player.role !== "POR");
+        const boxYs = [43, 51, 59, 34, 67, 26, 74, 48, 57];
+        const attackingXs = [87, 91, 84, 88, 80, 83, 78, 89, 85];
+        const defendingXs = [92, 88, 90, 85, 94, 82, 87, 91, 86, 80];
+        const attackMoves = attackingField.map((player, playerIndex) => {
+          const x = player.id === receiver.id ? target.x : (team === "home" ? attackingXs[playerIndex % attackingXs.length] : 100 - attackingXs[playerIndex % attackingXs.length]);
+          const y = player.id === receiver.id ? target.y : boxYs[playerIndex % boxYs.length];
+          return mover(player.id, player.position, { x, y }, .2 + (playerIndex % 4) * .035);
+        });
+        const defenseMoves = defendingField.map((player, playerIndex) => mover(player.id, player.position, {
+          x: team === "home" ? defendingXs[playerIndex % defendingXs.length] : 100 - defendingXs[playerIndex % defendingXs.length],
+          y: boxYs[(playerIndex + 1) % boxYs.length]
+        }, .24 + (playerIndex % 4) * .035));
+        events.push(
+          event(`out-${index}`, "BALL_OUT", time, .15, taker.id, undefined, taker.position, out, meta),
+          mover(taker.id, taker.position, corner, .18), ...attackMoves, ...defenseMoves,
+          event(`corner-${index}`, "CORNER_KICK", time + 1.05, .16, taker.id, taker.id, corner, corner, meta),
+          event(`corner-cross-${index}`, "PASS", time + 1.26, .78, taker.id, receiver.id, corner, target, meta),
+          event(`corner-receive-${index}`, "BALL_RECEIVED", time + 2.04, 0, receiver.id, receiver.id, target, target, meta)
+        );
+      }
+    };
+    const setPieces: Array<"THROW_IN" | "GOAL_KICK" | "CORNER_KICK"> = ["THROW_IN", "GOAL_KICK", "CORNER_KICK"];
     for (let time = 9, index = 0; time < duration - 3; time += 14, index++) {
       const occupied = events.some(item => item.type === "GOAL" && time >= item.startTime - 5.2 && time <= item.startTime + 2);
-      if (occupied) continue;
-      const team = index % 2 === 0 ? "home" : "away", teamPlayers = roster.filter(player => player.team === team);
-      const thrower = select(teamPlayers, ["DEF", "MED"], teamPlayers[0]);
-      const outPosition = { x: 30 + (index % 3) * 20, y: index % 2 ? 104 : -4 };
-      events.push(
-        event(`out-${index}`, "BALL_OUT", time, .15, thrower.id, undefined, thrower.position, outPosition, { out: true }),
-        event(`out-restart-${index}`, "KICK_OFF", time + 1.15, .15, thrower.id, thrower.id, { x: 50, y: 50 }, { x: 50, y: 50 }, { restart: true })
-      );
+      if (!occupied) agregarReanudacion(time, index, setPieces[index % setPieces.length]);
     }
     const homeMid = roster.find(player => player.team === "home" && player.role === "MED"), awayMid = roster.find(player => player.team === "away" && player.role === "MED");
     if (homeMid && awayMid) events.push(event("opening-home", "PLAYER_MOVE", .5, 2.2, homeMid.id, undefined, homeMid.position, { x: homeMid.position.x + 4, y: homeMid.position.y }, {}), event("opening-away", "PLAYER_MOVE", 5, 2.2, awayMid.id, undefined, awayMid.position, { x: awayMid.position.x - 4, y: awayMid.position.y }, {}), event("final-shape", "PLAYER_MOVE", duration - 3, 2, homeMid.id, undefined, homeMid.position, { x: homeMid.position.x + 2, y: homeMid.position.y }, {}));
